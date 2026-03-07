@@ -1,19 +1,26 @@
 package usecase
 
-import "context"
-
-type Pinger interface {
-	PingContext(ctx context.Context) error // DBの確認する
-}
+import (
+	"context"
+	"database/sql"
+	"time"
+)
 
 type HealthUC struct {
-	p Pinger // 依存
+	db *sql.DB
 }
 
-func NewHealthUC(p Pinger) HealthUC {
-	return HealthUC{p: p} // DI
+func NewHealthUC(db *sql.DB) HealthUsecase {
+	return &HealthUC{db: db}
 }
 
-func (u HealthUC) Check(ctx context.Context) error {
-	return u.p.PingContext(ctx) // DBにPingする
+func (u *HealthUC) Check() error {
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+
+	if err := u.db.PingContext(ctx); err != nil {
+		return ErrInternal
+	}
+
+	return nil
 }

@@ -12,10 +12,8 @@ func isDup(err error) bool {
 	if errors.As(err, &pgErr) && pgErr.Code == "23505" {
 		return true
 	}
-	if strings.Contains(err.Error(), "duplicate key") {
-		return true
-	}
-	return false
+
+	return strings.Contains(err.Error(), "duplicate key")
 }
 
 func isFK(err error) bool {

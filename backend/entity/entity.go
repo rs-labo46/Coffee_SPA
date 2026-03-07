@@ -18,10 +18,10 @@ const (
 type ItemKind string
 
 const (
-	KindNews   ItemKind = "news"   //ニュース
-	KindRecipe ItemKind = "recipe" //レシピ
-	KindDeal   ItemKind = "deal"   //セール
-	KindShop   ItemKind = "shop"   //店舗ショップ
+	KindNews   ItemKind = "news"   // ニュース
+	KindRecipe ItemKind = "recipe" // レシピ
+	KindDeal   ItemKind = "deal"   // セール
+	KindShop   ItemKind = "shop"   // 店舗ショップ
 )
 
 // Userはusersテーブル
@@ -45,6 +45,7 @@ type EmailVerify struct {
 	UsedAt    *time.Time `gorm:"column:used_at"`
 }
 
+// PwResetはpw_resetsテーブル
 type PwReset struct {
 	ID        int64      `gorm:"column:id;primaryKey;autoIncrement"`
 	UserID    int64      `gorm:"column:user_id;not null;index"`
@@ -88,10 +89,11 @@ type Item struct {
 	CreatedAt   time.Time `gorm:"column:created_at;not null;autoCreateTime"`
 }
 
-// AuditLogはaudit_logs テーブル
+// AuditLogはaudit_logsテーブル
 type AuditLog struct {
 	ID        int64          `gorm:"column:id;primaryKey;autoIncrement"`
 	Type      string         `gorm:"column:type;type:varchar;not null;index"`
+	UserID    *int64         `gorm:"column:user_id;index"`
 	IP        string         `gorm:"column:ip;type:varchar;not null"`
 	UA        string         `gorm:"column:ua;type:varchar;not null"`
 	MetaJSON  datatypes.JSON `gorm:"column:meta_json;type:jsonb;not null;default:'{}'"`

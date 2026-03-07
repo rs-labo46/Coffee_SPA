@@ -18,21 +18,18 @@ func NewEvRepository(db *gorm.DB) repository.EvRepository {
 	return &EvRepository{db: db}
 }
 
-// emailverifytokenを新規作成する
 func (r *EvRepository) Create(ev entity.EmailVerify) error {
 	err := r.db.Create(&ev).Error
 	if err != nil {
 		if isDup(err) || isFK(err) {
 			return repository.ErrConflict
 		}
-
 		return repository.ErrInternal
 	}
 
 	return nil
 }
 
-// token_hash で1件取得する
 func (r *EvRepository) GetByTokenHash(hash string) (entity.EmailVerify, error) {
 	var ev entity.EmailVerify
 
@@ -44,15 +41,13 @@ func (r *EvRepository) GetByTokenHash(hash string) (entity.EmailVerify, error) {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return entity.EmailVerify{}, repository.ErrNotFound
 		}
-
 		return entity.EmailVerify{}, repository.ErrInternal
 	}
 
 	return ev, nil
 }
 
-// 未使用レコードだけused_atを埋める
-func (r *EvRepository) Use(id uint64) error {
+func (r *EvRepository) Use(id int64) error {
 	now := time.Now()
 
 	res := r.db.
@@ -63,9 +58,23 @@ func (r *EvRepository) Use(id uint64) error {
 	if res.Error != nil {
 		return repository.ErrInternal
 	}
-
 	if res.RowsAffected == 0 {
 		return repository.ErrNotFound
+	}
+
+	return nil
+}
+
+func (r *EvRepository) RevokeUnusedByUser(userID int64) error {
+	now := time.Now()
+
+	res := r.db.
+		Model(&entity.EmailVerify{}).
+		Where("user_id = ? AND used_at IS NULL", userID).
+		Update("used_at", now)
+
+	if res.Error != nil {
+		return repository.ErrInternal
 	}
 
 	return nil

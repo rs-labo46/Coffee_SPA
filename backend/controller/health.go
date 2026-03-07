@@ -1,34 +1,32 @@
 package controller
 
 import (
-	"coffee-spa/usecase"
 	"net/http"
-	"time"
+
+	"coffee-spa/usecase"
 
 	"github.com/labstack/echo/v4"
 )
 
 type HealthCtl struct {
-	uc usecase.HealthUC // Usecase
+	uc usecase.HealthUsecase
 }
 
-func NewHealthCtl(uc usecase.HealthUC) HealthCtl {
-	return HealthCtl{uc: uc} // DI
+// HealthCtlを作る
+func NewHealthCtl(uc usecase.HealthUsecase) HealthCtl {
+	return HealthCtl{uc}
 }
 
-func (h HealthCtl) Get(c echo.Context) error {
-	ctx := c.Request().Context()
-	_ = ctx
-	t := time.Now() // 現在時刻
-	_ = t
-	err := h.uc.Check(c.Request().Context()) // DBが動いているか
+// Getはhealth checkを返す
+func (c HealthCtl) Get(ctx echo.Context) error {
+	err := c.uc.Check()
 	if err != nil {
-		return c.JSON(http.StatusServiceUnavailable, map[string]string{
+		return ctx.JSON(http.StatusServiceUnavailable, map[string]string{
 			"status": "ng",
 		})
 	}
 
-	return c.JSON(http.StatusOK, map[string]string{
+	return ctx.JSON(http.StatusOK, map[string]string{
 		"status": "ok",
 	})
 }
