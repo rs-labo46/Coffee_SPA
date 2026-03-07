@@ -24,6 +24,11 @@ func main() {
 		log.Fatal(err)
 	}
 
+	//テーブル作成とindexの作成
+	if err := db.Migrate(d); err != nil {
+		log.Fatal(err)
+	}
+
 	// Echo本体
 	e := echo.New()
 
