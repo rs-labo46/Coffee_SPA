@@ -9,7 +9,6 @@ import (
 )
 
 // 認証系の入力検証
-// AuthVal は Signup / Login / NewPw だけにする。
 type AuthVal interface {
 	Signup(email string, pw string) error
 	Login(email string, pw string) error
@@ -37,11 +36,15 @@ type Mailer interface {
 }
 
 // レート制御
+// signup=ip、login=email_hash、refresh=user_id を使う。
 type RateLim interface {
-	AllowLogin(ip string) (bool, int, error)
-	AllowRefresh(ip string) (bool, int, error)
-	AllowResend(ip string, emailHash string) (bool, int, error)
-	AllowForgot(ip string, emailHash string) (bool, int, error)
+	AllowSignup(ip string) (bool, int, error)
+	AllowLogin(emailHash string) (bool, int, error)
+	AllowRefresh(userID int64) (bool, int, error)
+	AllowResendIP(ip string) (bool, int, error)
+	AllowResendMail(emailHash string) (bool, int, error)
+	AllowForgotIP(ip string) (bool, int, error)
+	AllowForgotMail(emailHash string) (bool, int, error)
 }
 
 // 認証のusecase
@@ -170,11 +173,17 @@ func (u *AuthUC) ResendVerify(in ResendVerifyIn) error {
 
 	emailHash := sha256Hex(email)
 
-	ok, _, err := u.rl.AllowResend(in.IP, emailHash)
+	okIP, _, err := u.rl.AllowResendIP(in.IP)
 	if err != nil {
 		return ErrInternal
 	}
-	if !ok {
+
+	okMail, _, err := u.rl.AllowResendMail(emailHash)
+	if err != nil {
+		return ErrInternal
+	}
+
+	if !okIP || !okMail {
 		_ = u.writeAudit(
 			"auth.email.resend.rate_limited",
 			nil,
@@ -238,7 +247,6 @@ func (u *AuthUC) ResendVerify(in ResendVerifyIn) error {
 	return nil
 }
 
-// emailチェック
 func checkEmailOnly(email string) error {
 	if email == "" {
 		return ErrInvalidRequest

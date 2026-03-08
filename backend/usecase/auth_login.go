@@ -12,15 +12,16 @@ func (u *AuthUC) Login(in LoginIn) (AuthOut, error) {
 		return AuthOut{}, ErrInvalidRequest
 	}
 
-	ok, retry, err := u.rl.AllowLogin(in.IP)
+	email := normEmail(in.Email)
+	emailHash := sha256Hex(email)
+
+	ok, retry, err := u.rl.AllowLogin(emailHash)
 	if err != nil {
 		return AuthOut{}, ErrInternal
 	}
 	if !ok {
 		return AuthOut{}, ErrRateLimited{RetryAfterSec: retry}
 	}
-
-	email := normEmail(in.Email)
 
 	user, err := u.user.GetByEmail(email)
 	if err != nil {
@@ -114,18 +115,18 @@ func (u *AuthUC) Refresh(in RefreshIn) (AuthOut, error) {
 		return AuthOut{}, ErrUnauthorized
 	}
 
-	ok, retry, err := u.rl.AllowRefresh(in.IP)
+	rt, err := u.rt.GetByTokenHash(sha256Hex(in.RefreshToken))
+	if err != nil {
+		_ = u.writeAudit("auth.refresh.fail", nil, in.IP, in.UA, nil)
+		return AuthOut{}, ErrUnauthorized
+	}
+
+	ok, retry, err := u.rl.AllowRefresh(rt.UserID)
 	if err != nil {
 		return AuthOut{}, ErrInternal
 	}
 	if !ok {
 		return AuthOut{}, ErrRateLimited{RetryAfterSec: retry}
-	}
-
-	rt, err := u.rt.GetByTokenHash(sha256Hex(in.RefreshToken))
-	if err != nil {
-		_ = u.writeAudit("auth.refresh.fail", nil, in.IP, in.UA, nil)
-		return AuthOut{}, ErrUnauthorized
 	}
 
 	if time.Now().After(rt.ExpiresAt) || rt.RevokedAt != nil {
@@ -230,7 +231,7 @@ func (u *AuthUC) Refresh(in RefreshIn) (AuthOut, error) {
 	}, nil
 }
 
-// Logout は token_ver を上げて、refresh family を失効する
+// Logoutはtoken_verを上げて、refresh familyを失効する
 func (u *AuthUC) Logout(in LogoutIn) error {
 	_, err := u.user.BumpTokenVer(in.UserID)
 	if err != nil {

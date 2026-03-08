@@ -11,6 +11,14 @@ func (u *AuthUC) Signup(in SignupIn) (entity.User, error) {
 		return entity.User{}, ErrInvalidRequest
 	}
 
+	ok, retry, err := u.rl.AllowSignup(in.IP)
+	if err != nil {
+		return entity.User{}, ErrInternal
+	}
+	if !ok {
+		return entity.User{}, ErrRateLimited{RetryAfterSec: retry}
+	}
+
 	email := normEmail(in.Email)
 
 	passHash, err := u.ph.Hash(in.Pw)

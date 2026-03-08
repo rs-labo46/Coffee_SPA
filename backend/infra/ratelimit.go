@@ -2,88 +2,105 @@ package infra
 
 import (
 	"context"
+	"fmt"
 	"strconv"
 	"time"
 
 	"github.com/redis/go-redis/v9"
 )
 
-// Rule は rate limit 1件分
+// Ruleはrate limit 1件分
 type Rule struct {
 	Limit  int64
 	Window time.Duration
 }
 
-// RateLimiter は Redis + Lua の rate limiter
+// RateLimiterはRedis + Lua のrate limiter
 type RateLimiter struct {
-	rdb     *redis.Client
-	login   Rule
-	refresh Rule
-	resend  Rule
-	forgot  Rule
+	rdb        *redis.Client
+	signupIP   Rule
+	loginMail  Rule
+	refreshUID Rule
+	resendIP   Rule
+	resendMail Rule
+	forgotIP   Rule
+	forgotMail Rule
 }
 
-// Lua:
-// 現在値を INCR
-// 初回だけ EXPIRE 設定
-// limit 超過なら deny
-// retry-after 秒も返す
+// Lua
 var allowScript = redis.NewScript(`
 local current = redis.call("INCR", KEYS[1])
 if current == 1 then
   redis.call("EXPIRE", KEYS[1], ARGV[2])
 end
 
-local ttl = redis.call("TTL", KEYS[1])
-
-if current > tonumber(ARGV[1]) then
-  return {0, ttl}
+if current <= tonumber(ARGV[1]) then
+  return {1, 0}
 end
 
-return {1, ttl}
+local ttl = redis.call("TTL", KEYS[1])
+if ttl < 0 then ttl = ARGV[2] end
+
+return {0, ttl}
 `)
 
 func NewRateLimiter(
 	rdb *redis.Client,
-	login Rule,
-	refresh Rule,
-	resend Rule,
-	forgot Rule,
+	signupIP Rule,
+	loginMail Rule,
+	refreshUID Rule,
+	resendIP Rule,
+	resendMail Rule,
+	forgotIP Rule,
+	forgotMail Rule,
 ) *RateLimiter {
 	return &RateLimiter{
-		rdb:     rdb,
-		login:   login,
-		refresh: refresh,
-		resend:  resend,
-		forgot:  forgot,
+		rdb:        rdb,
+		signupIP:   signupIP,
+		loginMail:  loginMail,
+		refreshUID: refreshUID,
+		resendIP:   resendIP,
+		resendMail: resendMail,
+		forgotIP:   forgotIP,
+		forgotMail: forgotMail,
 	}
 }
 
-// login用rate limit
-func (r *RateLimiter) AllowLogin(ip string) (bool, int, error) {
-	key := "rl:login:ip:" + ip
-	return r.allow(key, r.login)
+func (r *RateLimiter) AllowSignup(ip string) (bool, int, error) {
+	key := "rl:signup:ip:" + ip
+	return r.allow(key, r.signupIP)
 }
 
-// refresh用 rate limit
-func (r *RateLimiter) AllowRefresh(ip string) (bool, int, error) {
-	key := "rl:refresh:ip:" + ip
-	return r.allow(key, r.refresh)
+func (r *RateLimiter) AllowLogin(emailHash string) (bool, int, error) {
+	key := "rl:login:mail:" + emailHash
+	return r.allow(key, r.loginMail)
 }
 
-// verify再送用 rate limit
-func (r *RateLimiter) AllowResend(ip string, emailHash string) (bool, int, error) {
-	key := "rl:resend:ip:" + ip + ":email:" + emailHash
-	return r.allow(key, r.resend)
+func (r *RateLimiter) AllowRefresh(userID int64) (bool, int, error) {
+	key := fmt.Sprintf("rl:refresh:uid:%d", userID)
+	return r.allow(key, r.refreshUID)
 }
 
-// forgot password用rate limit
-func (r *RateLimiter) AllowForgot(ip string, emailHash string) (bool, int, error) {
-	key := "rl:forgot:ip:" + ip + ":email:" + emailHash
-	return r.allow(key, r.forgot)
+func (r *RateLimiter) AllowResendIP(ip string) (bool, int, error) {
+	key := "rl:resend:ip:" + ip
+	return r.allow(key, r.resendIP)
 }
 
-// 共通の実行
+func (r *RateLimiter) AllowResendMail(emailHash string) (bool, int, error) {
+	key := "rl:resend:mail:" + emailHash
+	return r.allow(key, r.resendMail)
+}
+
+func (r *RateLimiter) AllowForgotIP(ip string) (bool, int, error) {
+	key := "rl:forgot:ip:" + ip
+	return r.allow(key, r.forgotIP)
+}
+
+func (r *RateLimiter) AllowForgotMail(emailHash string) (bool, int, error) {
+	key := "rl:forgot:mail:" + emailHash
+	return r.allow(key, r.forgotMail)
+}
+
 func (r *RateLimiter) allow(key string, rule Rule) (bool, int, error) {
 	ctx := context.Background()
 
@@ -116,7 +133,6 @@ func (r *RateLimiter) allow(key string, rule Rule) (bool, int, error) {
 	return allow == 1, int(retry), nil
 }
 
-// Lua結果をint64に寄せる
 func toI64(v interface{}) (int64, error) {
 	switch x := v.(type) {
 	case int64:

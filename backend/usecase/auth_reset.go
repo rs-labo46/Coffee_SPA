@@ -17,11 +17,17 @@ func (u *AuthUC) ForgotPw(in ForgotPwIn) error {
 
 	emailHash := sha256Hex(email)
 
-	ok, _, err := u.rl.AllowForgot(in.IP, emailHash)
+	okIP, _, err := u.rl.AllowForgotIP(in.IP)
 	if err != nil {
 		return ErrInternal
 	}
-	if !ok {
+
+	okMail, _, err := u.rl.AllowForgotMail(emailHash)
+	if err != nil {
+		return ErrInternal
+	}
+
+	if !okIP || !okMail {
 		_ = u.writeAudit(
 			"auth.password.forgot.rate_limited",
 			nil,
@@ -65,7 +71,6 @@ func (u *AuthUC) ForgotPw(in ForgotPwIn) error {
 		return mapRepoErr(err)
 	}
 
-	//送信失敗でも成功扱い。
 	if err := u.mail.SendReset(user.Email, raw); err != nil {
 		_ = u.writeAudit(
 			"auth.password.forgot.mail_failed",
@@ -142,7 +147,7 @@ func (u *AuthUC) ResetPw(in ResetPwIn) error {
 	return nil
 }
 
-// Meはuserを返す
+// user を返す
 func (u *AuthUC) Me(userID int64) (entity.User, error) {
 	user, err := u.user.GetByID(userID)
 	if err != nil {
