@@ -2,6 +2,7 @@ package infra
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"strconv"
 	"time"
@@ -27,7 +28,8 @@ type RateLimiter struct {
 	forgotMail Rule
 }
 
-// Lua
+// 秒単位 fixed window。
+// return {allowed, retry_after_sec}
 var allowScript = redis.NewScript(`
 local current = redis.call("INCR", KEYS[1])
 if current == 1 then
@@ -39,7 +41,9 @@ if current <= tonumber(ARGV[1]) then
 end
 
 local ttl = redis.call("TTL", KEYS[1])
-if ttl < 0 then ttl = ARGV[2] end
+if ttl < 0 then
+  ttl = tonumber(ARGV[2])
+end
 
 return {0, ttl}
 `)
@@ -102,14 +106,24 @@ func (r *RateLimiter) AllowForgotMail(emailHash string) (bool, int, error) {
 }
 
 func (r *RateLimiter) allow(key string, rule Rule) (bool, int, error) {
-	ctx := context.Background()
+	if r == nil || r.rdb == nil {
+		return false, 0, errors.New("redis client is nil")
+	}
+	if rule.Limit <= 0 {
+		return false, 0, errors.New("invalid rate limit")
+	}
+
+	sec := int64(rule.Window / time.Second)
+	if sec <= 0 {
+		sec = 1
+	}
 
 	out, err := allowScript.Run(
-		ctx,
+		context.Background(),
 		r.rdb,
 		[]string{key},
 		rule.Limit,
-		int64(rule.Window/time.Second),
+		sec,
 	).Result()
 	if err != nil {
 		return false, 0, err
@@ -117,10 +131,10 @@ func (r *RateLimiter) allow(key string, rule Rule) (bool, int, error) {
 
 	xs, ok := out.([]interface{})
 	if !ok || len(xs) != 2 {
-		return false, 0, redis.ErrClosed
+		return false, 0, errors.New("invalid lua result")
 	}
 
-	allow, err := toI64(xs[0])
+	allowed, err := toI64(xs[0])
 	if err != nil {
 		return false, 0, err
 	}
@@ -130,7 +144,7 @@ func (r *RateLimiter) allow(key string, rule Rule) (bool, int, error) {
 		return false, 0, err
 	}
 
-	return allow == 1, int(retry), nil
+	return allowed == 1, int(retry), nil
 }
 
 func toI64(v interface{}) (int64, error) {
@@ -140,6 +154,6 @@ func toI64(v interface{}) (int64, error) {
 	case string:
 		return strconv.ParseInt(x, 10, 64)
 	default:
-		return 0, redis.ErrClosed
+		return 0, errors.New("invalid lua value")
 	}
 }

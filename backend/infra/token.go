@@ -38,7 +38,7 @@ func (m *JWTMaker) NewAccess(userID int64, role string, tokenVer int) (string, e
 		RegisteredClaims: jwt.RegisteredClaims{
 			Subject:   strconv.FormatInt(userID, 10),
 			IssuedAt:  jwt.NewNumericDate(now),
-			ExpiresAt: jwt.NewNumericDate(now.Add(15 * time.Minute)),
+			ExpiresAt: jwt.NewNumericDate(now.Add(3 * time.Minute)),
 		},
 	}
 

@@ -10,8 +10,10 @@ import (
 	"coffee-spa/router"
 	"coffee-spa/usecase"
 	"coffee-spa/validator"
+	"context"
 	"log"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/labstack/echo/v4"
@@ -35,14 +37,16 @@ func main() {
 
 	e := echo.New()
 
-	redisAddr := os.Getenv("REDIS_ADDR")
-	if redisAddr == "" {
-		redisAddr = "localhost:6379"
-	}
-
 	rdb := redis.NewClient(&redis.Options{
-		Addr: redisAddr,
+		Addr: redisAddr(),
 	})
+
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+
+	if err := rdb.Ping(ctx).Err(); err != nil {
+		log.Fatal(err)
+	}
 
 	userRepo := dbrepository.NewUserRepository(d.G)
 	evRepo := dbrepository.NewEvRepository(d.G)
@@ -68,32 +72,32 @@ func main() {
 	rl := infra.NewRateLimiter(
 		rdb,
 		infra.Rule{
-			Limit:  5,
-			Window: 1 * time.Second,
+			Limit:  1,
+			Window: 5 * time.Second,
 		},
 		infra.Rule{
-			Limit:  5,
-			Window: 1 * time.Second,
+			Limit:  1,
+			Window: 5 * time.Second,
 		},
 		infra.Rule{
-			Limit:  2,
-			Window: 1 * time.Second,
+			Limit:  1,
+			Window: 2 * time.Second,
 		},
 		infra.Rule{
-			Limit:  2,
-			Window: 1 * time.Second,
+			Limit:  1,
+			Window: 2 * time.Second,
 		},
 		infra.Rule{
-			Limit:  4,
-			Window: 1 * time.Second,
+			Limit:  1,
+			Window: 4 * time.Second,
 		},
 		infra.Rule{
-			Limit:  2,
-			Window: 1 * time.Second,
+			Limit:  1,
+			Window: 2 * time.Second,
 		},
 		infra.Rule{
-			Limit:  4,
-			Window: 1 * time.Second,
+			Limit:  1,
+			Window: 4 * time.Second,
 		},
 	)
 
@@ -133,7 +137,29 @@ func main() {
 		authCtl,
 		itemCtl,
 		srcCtl,
+		c.JWTSecret,
+		userRepo,
+		c.FEURL,
 	)
 
 	log.Fatal(e.Start(":" + c.Port))
+}
+
+func redisAddr() string {
+	addr := strings.TrimSpace(os.Getenv("REDIS_ADDR"))
+	if addr != "" {
+		return addr
+	}
+
+	host := strings.TrimSpace(os.Getenv("REDIS_HOST"))
+	if host == "" {
+		host = "localhost"
+	}
+
+	port := strings.TrimSpace(os.Getenv("REDIS_PORT"))
+	if port == "" {
+		port = "6379"
+	}
+
+	return host + ":" + port
 }
