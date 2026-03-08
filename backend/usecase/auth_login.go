@@ -2,10 +2,11 @@ package usecase
 
 import (
 	"coffee-spa/entity"
+	"strings"
 	"time"
 )
 
-// Login は access/refresh/csrf を発行する
+// Login は access / refresh / csrf を発行する
 func (u *AuthUC) Login(in LoginIn) (AuthOut, error) {
 	if err := u.val.Login(in.Email, in.Pw); err != nil {
 		return AuthOut{}, ErrInvalidRequest
@@ -106,10 +107,11 @@ func (u *AuthUC) Login(in LoginIn) (AuthOut, error) {
 	}, nil
 }
 
-// Refresh は refresh token を回転させる
+// refresh token を回転させる
 func (u *AuthUC) Refresh(in RefreshIn) (AuthOut, error) {
-	if err := u.val.Refresh(in.RefreshToken); err != nil {
-		return AuthOut{}, ErrInvalidRequest
+	if strings.TrimSpace(in.RefreshToken) == "" {
+		_ = u.writeAudit("auth.refresh.fail", nil, in.IP, in.UA, nil)
+		return AuthOut{}, ErrUnauthorized
 	}
 
 	ok, retry, err := u.rl.AllowRefresh(in.IP)
@@ -228,7 +230,7 @@ func (u *AuthUC) Refresh(in RefreshIn) (AuthOut, error) {
 	}, nil
 }
 
-// Logout は token_ver を上げ、refresh family を失効する
+// Logout は token_ver を上げて、refresh family を失効する
 func (u *AuthUC) Logout(in LogoutIn) error {
 	_, err := u.user.BumpTokenVer(in.UserID)
 	if err != nil {

@@ -8,26 +8,50 @@ import (
 )
 
 type Cfg struct {
-	Port   string
+	// APIの待受ポート
+	Port string
+
+	// PostgreSQL接続情報
 	PgUser string
 	PgPass string
 	PgDB   string
 	PgHost string
 	PgPort int
-	GoEnv  string
+
+	// 実行環境
+	GoEnv string
+
+	// JWT署名用シークレット
+	JWTSecret string
+
+	// フロントエンドURL
+	FEURL string
 }
 
 func Load() (Cfg, error) {
 	_ = godotenv.Load()
 
 	c := Cfg{}
-	c.Port = getenv("PORT", "8080")                 // APIのポート
-	c.PgUser = mustGet("POSTGRES_USER")             // DBユーザ
-	c.PgPass = mustGet("POSTGRES_PASSWORD")         // DBパスワード
-	c.PgDB = mustGet("POSTGRES_DB")                 // DB名
-	c.PgHost = getenv("POSTGRES_HOST", "localhost") // DBホスト
-	c.GoEnv = getenv("GO_ENV", "dev")               // 実行環境
 
+	// APIのポート
+	c.Port = getenv("PORT", "8080")
+
+	// DB接続情報
+	c.PgUser = mustGet("POSTGRES_USER")
+	c.PgPass = mustGet("POSTGRES_PASSWORD")
+	c.PgDB = mustGet("POSTGRES_DB")
+	c.PgHost = getenv("POSTGRES_HOST", "localhost")
+
+	// 実行環境
+	c.GoEnv = getenv("GO_ENV", "dev")
+
+	// JWT署名鍵
+	c.JWTSecret = mustGet("JWT_SECRET")
+
+	// フロントエンドURL
+	c.FEURL = getenv("FE_URL", "http://localhost:3000")
+
+	// DBポート
 	p := getenv("POSTGRES_PORT", "5433")
 	n, err := strconv.Atoi(p)
 	if err != nil {
@@ -38,7 +62,7 @@ func Load() (Cfg, error) {
 	return c, nil
 }
 
-func getenv(k, def string) string {
+func getenv(k string, def string) string {
 	v := os.Getenv(k)
 	if v == "" {
 		return def

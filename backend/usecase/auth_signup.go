@@ -5,7 +5,7 @@ import (
 	"time"
 )
 
-// Signup は user 作成 + verify token 発行 + メール送信
+// user作成 + verify token発行 + メール送信
 func (u *AuthUC) Signup(in SignupIn) (entity.User, error) {
 	if err := u.val.Signup(in.Email, in.Pw); err != nil {
 		return entity.User{}, ErrInvalidRequest

@@ -11,10 +11,16 @@ import (
 	"gorm.io/datatypes"
 )
 
+type ItemVal interface {
+	NewItem(in AddItemIn) error
+	ListItem(q ItemQ) error
+}
+
 type ItemUC struct {
 	item   repository.ItemRepository
 	source repository.SourceRepository
 	audit  repository.AuditRepository
+	val    ItemVal
 }
 
 type itemCreateMeta struct {
@@ -26,24 +32,19 @@ func NewItemUC(
 	item repository.ItemRepository,
 	source repository.SourceRepository,
 	audit repository.AuditRepository,
+	val ItemVal,
 ) ItemUsecase {
 	return &ItemUC{
 		item:   item,
 		source: source,
 		audit:  audit,
+		val:    val,
 	}
 }
 
 func (u *ItemUC) Add(actor Actor, in AddItemIn) (entity.Item, error) {
-	if actor.Role != string(entity.RoleAdmin) {
-		return entity.Item{}, ErrForbidden
-	}
-
-	if in.Title == "" || in.Kind == "" || in.SourceID == 0 || in.PublishedAt == "" {
-		return entity.Item{}, ErrInvalidRequest
-	}
-
-	if !isItemKind(in.Kind) {
+	//認可はmiddlewareで実施。
+	if err := u.val.NewItem(in); err != nil {
 		return entity.Item{}, ErrInvalidRequest
 	}
 
@@ -78,26 +79,22 @@ func (u *ItemUC) Add(actor Actor, in AddItemIn) (entity.Item, error) {
 		return entity.Item{}, ErrInternal
 	}
 
-	auditErr := u.audit.Create(entity.AuditLog{
+	err = u.audit.Create(entity.AuditLog{
 		Type:     "admin.items.create",
 		UserID:   toI64Ptr(actor.UserID),
 		IP:       actor.IP,
 		UA:       actor.UA,
 		MetaJSON: datatypes.JSON(b),
 	})
-	if auditErr != nil {
-		return entity.Item{}, mapRepoErr(auditErr)
+	if err != nil {
+		return entity.Item{}, mapRepoErr(err)
 	}
 
 	return item, nil
 }
 
 func (u *ItemUC) Search(q ItemQ) ([]entity.Item, error) {
-	if q.Kind != "" && !isItemKind(q.Kind) {
-		return nil, ErrInvalidRequest
-	}
-
-	if q.Limit < 0 || q.Offset < 0 {
+	if err := u.val.ListItem(q); err != nil {
 		return nil, ErrInvalidRequest
 	}
 
@@ -130,18 +127,6 @@ func (u *ItemUC) Top(limit int) (TopItems, error) {
 		Deal:   out.Deal,
 		Shop:   out.Shop,
 	}, nil
-}
-
-func isItemKind(kind string) bool {
-	switch kind {
-	case string(entity.KindNews),
-		string(entity.KindRecipe),
-		string(entity.KindDeal),
-		string(entity.KindShop):
-		return true
-	default:
-		return false
-	}
 }
 
 func mapRepoErr(err error) error {

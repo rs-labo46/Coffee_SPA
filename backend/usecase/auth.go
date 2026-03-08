@@ -4,27 +4,25 @@ import (
 	"coffee-spa/entity"
 	"coffee-spa/repository"
 	"errors"
+	"strings"
 	"time"
 )
 
-// AuthVal は認証系の入力検証
+// 認証系の入力検証
+// AuthVal は Signup / Login / NewPw だけにする。
 type AuthVal interface {
 	Signup(email string, pw string) error
 	Login(email string, pw string) error
-	VerifyEmail(token string) error
-	ResendVerify(email string) error
-	Refresh(refreshToken string) error
-	ForgotPw(email string) error
-	ResetPw(token string, newPw string) error
+	NewPw(pw string) error
 }
 
-// PwHash はパスワードハッシュ
+// パスワードハッシュ
 type PwHash interface {
 	Hash(pw string) (string, error)
 	Compare(hash string, pw string) error
 }
 
-// Tok はJWT/CSRF/ランダムtoken生成
+// JWT/CSRF/ランダムtoken生成
 type Tok interface {
 	NewAccess(userID int64, role string, tokenVer int) (string, error)
 	NewCSRF() (string, error)
@@ -32,13 +30,13 @@ type Tok interface {
 	NewFamilyID() (string, error)
 }
 
-// Mailer はメール送信
+// メール送信
 type Mailer interface {
 	SendVerify(email string, token string) error
 	SendReset(email string, token string) error
 }
 
-// RateLim はレート制御
+// レート制御
 type RateLim interface {
 	AllowLogin(ip string) (bool, int, error)
 	AllowRefresh(ip string) (bool, int, error)
@@ -46,7 +44,7 @@ type RateLim interface {
 	AllowForgot(ip string, emailHash string) (bool, int, error)
 }
 
-// AuthUC は認証系usecase
+// 認証のusecase
 type AuthUC struct {
 	user  repository.UserRepository
 	ev    repository.EvRepository
@@ -99,7 +97,7 @@ type resetMeta struct {
 	UserID int64 `json:"user_id"`
 }
 
-// NewAuthUC は AuthUC を作る
+// AuthUCを作る
 func NewAuthUC(
 	user repository.UserRepository,
 	ev repository.EvRepository,
@@ -126,13 +124,14 @@ func NewAuthUC(
 	}
 }
 
-// VerifyEmail は verify token で email_verified を true にする
+// verify tokenでemail_verifiedをtrueにする
 func (u *AuthUC) VerifyEmail(in VerifyEmailIn) error {
-	if err := u.val.VerifyEmail(in.Token); err != nil {
+	token := strings.TrimSpace(in.Token)
+	if token == "" {
 		return ErrInvalidRequest
 	}
 
-	ev, err := u.ev.GetByTokenHash(sha256Hex(in.Token))
+	ev, err := u.ev.GetByTokenHash(sha256Hex(token))
 	if err != nil {
 		return ErrUnauthorized
 	}
@@ -162,13 +161,13 @@ func (u *AuthUC) VerifyEmail(in VerifyEmailIn) error {
 	return nil
 }
 
-// ResendVerify は未認証ユーザー向けに verify token を再送する
+// 未認証ユーザー向けにverify tokenを再送する
 func (u *AuthUC) ResendVerify(in ResendVerifyIn) error {
-	if err := u.val.ResendVerify(in.Email); err != nil {
-		return ErrInvalidRequest
+	email := normEmail(in.Email)
+	if err := checkEmailOnly(email); err != nil {
+		return err
 	}
 
-	email := normEmail(in.Email)
 	emailHash := sha256Hex(email)
 
 	ok, _, err := u.rl.AllowResend(in.IP, emailHash)
@@ -236,5 +235,19 @@ func (u *AuthUC) ResendVerify(in ResendVerifyIn) error {
 		return err
 	}
 
+	return nil
+}
+
+// emailチェック
+func checkEmailOnly(email string) error {
+	if email == "" {
+		return ErrInvalidRequest
+	}
+	if len(email) > 254 {
+		return ErrInvalidRequest
+	}
+	if !strings.Contains(email, "@") {
+		return ErrInvalidRequest
+	}
 	return nil
 }

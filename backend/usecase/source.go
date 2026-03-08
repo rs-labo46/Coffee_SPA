@@ -9,9 +9,14 @@ import (
 	"gorm.io/datatypes"
 )
 
+type SourceVal interface {
+	NewSource(in AddSourceIn) error
+}
+
 type SourceUC struct {
 	source repository.SourceRepository
 	audit  repository.AuditRepository
+	val    SourceVal
 }
 
 type sourceCreateMeta struct {
@@ -22,19 +27,17 @@ type sourceCreateMeta struct {
 func NewSourceUC(
 	source repository.SourceRepository,
 	audit repository.AuditRepository,
+	val SourceVal,
 ) SourceUsecase {
 	return &SourceUC{
 		source: source,
 		audit:  audit,
+		val:    val,
 	}
 }
 
 func (u *SourceUC) Add(actor Actor, in AddSourceIn) (entity.Source, error) {
-	if actor.Role != string(entity.RoleAdmin) {
-		return entity.Source{}, ErrForbidden
-	}
-
-	if in.Name == "" {
+	if err := u.val.NewSource(in); err != nil {
 		return entity.Source{}, ErrInvalidRequest
 	}
 

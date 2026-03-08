@@ -4,16 +4,17 @@ import (
 	"coffee-spa/entity"
 	"coffee-spa/repository"
 	"errors"
+	"strings"
 	"time"
 )
 
-// reset tokenを発行してメール送信する
+// reset token を発行してメール送信する
 func (u *AuthUC) ForgotPw(in ForgotPwIn) error {
-	if err := u.val.ForgotPw(in.Email); err != nil {
-		return ErrInvalidRequest
+	email := normEmail(in.Email)
+	if err := checkEmailOnly(email); err != nil {
+		return err
 	}
 
-	email := normEmail(in.Email)
 	emailHash := sha256Hex(email)
 
 	ok, _, err := u.rl.AllowForgot(in.IP, emailHash)
@@ -64,6 +65,7 @@ func (u *AuthUC) ForgotPw(in ForgotPwIn) error {
 		return mapRepoErr(err)
 	}
 
+	//送信失敗でも成功扱い。
 	if err := u.mail.SendReset(user.Email, raw); err != nil {
 		_ = u.writeAudit(
 			"auth.password.forgot.mail_failed",
@@ -87,9 +89,13 @@ func (u *AuthUC) ForgotPw(in ForgotPwIn) error {
 	return nil
 }
 
-// password 更新 + token消費 + 全refresh失効
+// password更新 + token消費 + 全refresh失効
 func (u *AuthUC) ResetPw(in ResetPwIn) error {
-	if err := u.val.ResetPw(in.Token, in.NewPw); err != nil {
+	if strings.TrimSpace(in.Token) == "" {
+		return ErrInvalidRequest
+	}
+
+	if err := u.val.NewPw(in.NewPw); err != nil {
 		return ErrInvalidRequest
 	}
 
