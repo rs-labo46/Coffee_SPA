@@ -156,7 +156,7 @@ func (ctl AuthCtl) Login(c echo.Context) error {
 		})
 	}
 
-	out, err := ctl.uc.Login(usecase.LoginIn{
+	loginResult, err := ctl.uc.Login(usecase.LoginIn{
 		Email: req.Email,
 		Pw:    req.Pw,
 		IP:    realIP(c),
@@ -166,18 +166,18 @@ func (ctl AuthCtl) Login(c echo.Context) error {
 		return writeErr(c, err)
 	}
 
-	setRefreshCookie(c, out.RefreshToken)
-	setCSRFCookie(c, out.CsrfToken)
+	setRefreshCookie(c, loginResult.RefreshToken)
+	setCSRFCookie(c, loginResult.CsrfToken)
 
 	return c.JSON(http.StatusOK, AuthRes{
-		AccessToken: out.AccessToken,
-		User:        toAuthUserRes(out.User),
+		AccessToken: loginResult.AccessToken,
+		User:        toAuthUserRes(loginResult.User),
 	})
 }
 
 // POST /auth/refresh を処理。
 func (ctl AuthCtl) Refresh(c echo.Context) error {
-	out, err := ctl.uc.Refresh(usecase.RefreshIn{
+	refreshResult, err := ctl.uc.Refresh(usecase.RefreshIn{
 		RefreshToken: refreshCookie(c),
 		IP:           realIP(c),
 		UA:           userAgent(c),
@@ -186,12 +186,12 @@ func (ctl AuthCtl) Refresh(c echo.Context) error {
 		return writeErr(c, err)
 	}
 
-	setRefreshCookie(c, out.RefreshToken)
-	setCSRFCookie(c, out.CsrfToken)
+	setRefreshCookie(c, refreshResult.RefreshToken)
+	setCSRFCookie(c, refreshResult.CsrfToken)
 
 	return c.JSON(http.StatusOK, AuthRes{
-		AccessToken: out.AccessToken,
-		User:        toAuthUserRes(out.User),
+		AccessToken: refreshResult.AccessToken,
+		User:        toAuthUserRes(refreshResult.User),
 	})
 }
 

@@ -129,7 +129,6 @@ func (v *ItemValidator) ListItem(q usecase.ItemQ) error {
 	if q.Kind == "" {
 		return nil
 	}
-
 	return v.kind.Ok(q.Kind)
 }
 

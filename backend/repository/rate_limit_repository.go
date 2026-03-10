@@ -1,4 +1,4 @@
-package infra
+package repository
 
 import (
 	"context"
@@ -118,7 +118,7 @@ func (r *RateLimiter) allow(key string, rule Rule) (bool, int, error) {
 		sec = 1
 	}
 
-	out, err := allowScript.Run(
+	luaRes, err := allowScript.Run(
 		context.Background(),
 		r.rdb,
 		[]string{key},
@@ -129,17 +129,17 @@ func (r *RateLimiter) allow(key string, rule Rule) (bool, int, error) {
 		return false, 0, err
 	}
 
-	xs, ok := out.([]interface{})
+	xs, ok := luaRes.([]interface{})
 	if !ok || len(xs) != 2 {
 		return false, 0, errors.New("invalid lua result")
 	}
 
-	allowed, err := toI64(xs[0])
+	allowed, err := int64Pointer(xs[0])
 	if err != nil {
 		return false, 0, err
 	}
 
-	retry, err := toI64(xs[1])
+	retry, err := int64Pointer(xs[1])
 	if err != nil {
 		return false, 0, err
 	}
@@ -147,7 +147,7 @@ func (r *RateLimiter) allow(key string, rule Rule) (bool, int, error) {
 	return allowed == 1, int(retry), nil
 }
 
-func toI64(v interface{}) (int64, error) {
+func int64Pointer(v interface{}) (int64, error) {
 	switch x := v.(type) {
 	case int64:
 		return x, nil

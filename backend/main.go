@@ -4,9 +4,8 @@ import (
 	"coffee-spa/config"
 	"coffee-spa/controller"
 	"coffee-spa/db"
-	"coffee-spa/dbrepository"
-	"coffee-spa/infra"
 	"coffee-spa/policy"
+	"coffee-spa/repository"
 	"coffee-spa/router"
 	"coffee-spa/usecase"
 	"coffee-spa/validator"
@@ -48,13 +47,13 @@ func main() {
 		log.Fatal(err)
 	}
 
-	userRepo := dbrepository.NewUserRepository(d.G)
-	evRepo := dbrepository.NewEvRepository(d.G)
-	pwRepo := dbrepository.NewPwRepository(d.G)
-	rtRepo := dbrepository.NewRtRepository(d.G)
-	sourceRepo := dbrepository.NewSourceRepository(d.G)
-	itemRepo := dbrepository.NewItemRepository(d.G)
-	auditRepo := dbrepository.NewAuditRepository(d.G)
+	userRepo := repository.NewUserRepository(d.G)
+	evRepo := repository.NewEvRepository(d.G)
+	pwRepo := repository.NewPwRepository(d.G)
+	rtRepo := repository.NewRtRepository(d.G)
+	sourceRepo := repository.NewSourceRepository(d.G)
+	itemRepo := repository.NewItemRepository(d.G)
+	auditRepo := repository.NewAuditRepository(d.G)
 
 	pwPol := policy.NewPwPol()
 	emailPol := policy.NewEmailPol()
@@ -66,36 +65,36 @@ func main() {
 	itemVal := validator.NewItemValidator(kindPol, urlPol, pagePol)
 	sourceVal := validator.NewSourceValidator(urlPol)
 
-	ph := infra.NewBcryptHasher()
-	tk := infra.NewJWTMaker(c.JWTSecret)
-	mail := infra.NewLogMailer(c.FEURL)
-	rl := infra.NewRateLimiter(
+	ph := usecase.NewBcryptHasher()
+	tk := usecase.NewJWTMaker(c.JWTSecret)
+	mail := usecase.NewLogMailer(c.FEURL)
+	rl := repository.NewRateLimiter(
 		rdb,
-		infra.Rule{
+		repository.Rule{
 			Limit:  1,
 			Window: 5 * time.Second,
 		},
-		infra.Rule{
+		repository.Rule{
 			Limit:  1,
 			Window: 5 * time.Second,
 		},
-		infra.Rule{
+		repository.Rule{
 			Limit:  1,
 			Window: 2 * time.Second,
 		},
-		infra.Rule{
+		repository.Rule{
 			Limit:  1,
 			Window: 2 * time.Second,
 		},
-		infra.Rule{
+		repository.Rule{
 			Limit:  1,
 			Window: 4 * time.Second,
 		},
-		infra.Rule{
+		repository.Rule{
 			Limit:  1,
 			Window: 2 * time.Second,
 		},
-		infra.Rule{
+		repository.Rule{
 			Limit:  1,
 			Window: 4 * time.Second,
 		},

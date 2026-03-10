@@ -81,7 +81,7 @@ func (u *ItemUC) Add(actor Actor, in AddItemIn) (entity.Item, error) {
 
 	err = u.audit.Create(entity.AuditLog{
 		Type:     "admin.items.create",
-		UserID:   toI64Ptr(actor.UserID),
+		UserID:   int64Pointer(actor.UserID),
 		IP:       actor.IP,
 		UA:       actor.UA,
 		MetaJSON: datatypes.JSON(b),
@@ -116,16 +116,16 @@ func (u *ItemUC) Top(limit int) (TopItems, error) {
 		return TopItems{}, ErrInvalidRequest
 	}
 
-	out, err := u.item.Top(limit)
+	topItems, err := u.item.Top(limit)
 	if err != nil {
 		return TopItems{}, mapRepoErr(err)
 	}
 
 	return TopItems{
-		News:   out.News,
-		Recipe: out.Recipe,
-		Deal:   out.Deal,
-		Shop:   out.Shop,
+		News:   topItems.News,
+		Recipe: topItems.Recipe,
+		Deal:   topItems.Deal,
+		Shop:   topItems.Shop,
 	}, nil
 }
 
@@ -142,7 +142,7 @@ func mapRepoErr(err error) error {
 	}
 }
 
-func toI64Ptr(id int64) *int64 {
+func int64Pointer(id int64) *int64 {
 	if id == 0 {
 		return nil
 	}

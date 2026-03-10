@@ -1,4 +1,4 @@
-package dbrepository
+package repository
 
 import (
 	"errors"

@@ -9,15 +9,15 @@ import (
 )
 
 // reset token を発行してメール送信する
-func (u *AuthUC) ForgotPw(in ForgotPwIn) error {
-	email := normEmail(in.Email)
+func (u *AuthUC) ForgotPw(ForgotPasswordInput ForgotPwIn) error {
+	email := normEmail(ForgotPasswordInput.Email)
 	if err := checkEmailOnly(email); err != nil {
 		return err
 	}
 
 	emailHash := sha256Hex(email)
 
-	okIP, _, err := u.rl.AllowForgotIP(in.IP)
+	okIP, _, err := u.rl.AllowForgotIP(ForgotPasswordInput.IP)
 	if err != nil {
 		return ErrInternal
 	}
@@ -31,8 +31,8 @@ func (u *AuthUC) ForgotPw(in ForgotPwIn) error {
 		_ = u.writeAudit(
 			"auth.password.forgot.rate_limited",
 			nil,
-			in.IP,
-			in.UA,
+			ForgotPasswordInput.IP,
+			ForgotPasswordInput.UA,
 			forgotMeta{Email: maskEmail(email)},
 		)
 		return nil
@@ -44,8 +44,8 @@ func (u *AuthUC) ForgotPw(in ForgotPwIn) error {
 			_ = u.writeAudit(
 				"auth.password.forgot",
 				nil,
-				in.IP,
-				in.UA,
+				ForgotPasswordInput.IP,
+				ForgotPasswordInput.UA,
 				forgotMeta{Email: maskEmail(email)},
 			)
 			return nil
@@ -74,18 +74,18 @@ func (u *AuthUC) ForgotPw(in ForgotPwIn) error {
 	if err := u.mail.SendReset(user.Email, raw); err != nil {
 		_ = u.writeAudit(
 			"auth.password.forgot.mail_failed",
-			toI64Ptr(user.ID),
-			in.IP,
-			in.UA,
+			int64Pointer(user.ID),
+			ForgotPasswordInput.IP,
+			ForgotPasswordInput.UA,
 			verifyMeta{UserID: user.ID},
 		)
 	}
 
 	if err := u.writeAudit(
 		"auth.password.forgot",
-		toI64Ptr(user.ID),
-		in.IP,
-		in.UA,
+		int64Pointer(user.ID),
+		ForgotPasswordInput.IP,
+		ForgotPasswordInput.UA,
 		forgotMeta{Email: maskEmail(user.Email)},
 	); err != nil {
 		return err
@@ -95,16 +95,16 @@ func (u *AuthUC) ForgotPw(in ForgotPwIn) error {
 }
 
 // password更新 + token消費 + 全refresh失効
-func (u *AuthUC) ResetPw(in ResetPwIn) error {
-	if strings.TrimSpace(in.Token) == "" {
+func (u *AuthUC) ResetPw(ResetPasswordInput ResetPwIn) error {
+	if strings.TrimSpace(ResetPasswordInput.Token) == "" {
 		return ErrInvalidRequest
 	}
 
-	if err := u.val.NewPw(in.NewPw); err != nil {
+	if err := u.val.NewPw(ResetPasswordInput.NewPw); err != nil {
 		return ErrInvalidRequest
 	}
 
-	pw, err := u.pw.GetByTokenHash(sha256Hex(in.Token))
+	pw, err := u.pw.GetByTokenHash(sha256Hex(ResetPasswordInput.Token))
 	if err != nil {
 		return ErrUnauthorized
 	}
@@ -113,7 +113,7 @@ func (u *AuthUC) ResetPw(in ResetPwIn) error {
 		return ErrUnauthorized
 	}
 
-	newHash, err := u.ph.Hash(in.NewPw)
+	newHash, err := u.ph.Hash(ResetPasswordInput.NewPw)
 	if err != nil {
 		return ErrInternal
 	}
@@ -136,9 +136,9 @@ func (u *AuthUC) ResetPw(in ResetPwIn) error {
 
 	if err := u.writeAudit(
 		"auth.password.reset",
-		toI64Ptr(pw.UserID),
-		in.IP,
-		in.UA,
+		int64Pointer(pw.UserID),
+		ResetPasswordInput.IP,
+		ResetPasswordInput.UA,
 		resetMeta{UserID: pw.UserID},
 	); err != nil {
 		return err

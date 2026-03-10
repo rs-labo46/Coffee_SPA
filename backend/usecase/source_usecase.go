@@ -59,7 +59,7 @@ func (u *SourceUC) Add(actor Actor, in AddSourceIn) (entity.Source, error) {
 
 	auditErr := u.audit.Create(entity.AuditLog{
 		Type:     "admin.sources.create",
-		UserID:   toI64Ptr(actor.UserID),
+		UserID:   int64Pointer(actor.UserID),
 		IP:       actor.IP,
 		UA:       actor.UA,
 		MetaJSON: datatypes.JSON(b),

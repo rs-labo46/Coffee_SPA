@@ -52,16 +52,16 @@ type TopItemsRes struct {
 func (ctl ItemCtl) Top(c echo.Context) error {
 	limit := qInt(c, "limit", 3)
 
-	out, err := ctl.uc.Top(limit)
+	topItems, err := ctl.uc.Top(limit)
 	if err != nil {
 		return writeErr(c, err)
 	}
 
 	return c.JSON(http.StatusOK, TopItemsRes{
-		News:   out.News,
-		Recipe: out.Recipe,
-		Deal:   out.Deal,
-		Shop:   out.Shop,
+		News:   topItems.News,
+		Recipe: topItems.Recipe,
+		Deal:   topItems.Deal,
+		Shop:   topItems.Shop,
 	})
 }
 

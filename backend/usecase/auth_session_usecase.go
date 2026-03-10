@@ -7,12 +7,12 @@ import (
 )
 
 // Login は access / refresh / csrf を発行する
-func (u *AuthUC) Login(in LoginIn) (AuthOut, error) {
-	if err := u.val.Login(in.Email, in.Pw); err != nil {
+func (u *AuthUC) Login(LoginInput LoginIn) (AuthOut, error) {
+	if err := u.val.Login(LoginInput.Email, LoginInput.Pw); err != nil {
 		return AuthOut{}, ErrInvalidRequest
 	}
 
-	email := normEmail(in.Email)
+	email := normEmail(LoginInput.Email)
 	emailHash := sha256Hex(email)
 
 	ok, retry, err := u.rl.AllowLogin(emailHash)
@@ -28,8 +28,8 @@ func (u *AuthUC) Login(in LoginIn) (AuthOut, error) {
 		_ = u.writeAudit(
 			"auth.login.fail",
 			nil,
-			in.IP,
-			in.UA,
+			LoginInput.IP,
+			LoginInput.UA,
 			loginFailMeta{Reason: "unauthorized"},
 		)
 		return AuthOut{}, ErrUnauthorized
@@ -38,20 +38,20 @@ func (u *AuthUC) Login(in LoginIn) (AuthOut, error) {
 	if !user.EmailVerified {
 		_ = u.writeAudit(
 			"auth.login.fail",
-			toI64Ptr(user.ID),
-			in.IP,
-			in.UA,
+			int64Pointer(user.ID),
+			LoginInput.IP,
+			LoginInput.UA,
 			loginFailMeta{Reason: "unauthorized"},
 		)
 		return AuthOut{}, ErrUnauthorized
 	}
 
-	if err := u.ph.Compare(user.PassHash, in.Pw); err != nil {
+	if err := u.ph.Compare(user.PassHash, LoginInput.Pw); err != nil {
 		_ = u.writeAudit(
 			"auth.login.fail",
-			toI64Ptr(user.ID),
-			in.IP,
-			in.UA,
+			int64Pointer(user.ID),
+			LoginInput.IP,
+			LoginInput.UA,
 			loginFailMeta{Reason: "unauthorized"},
 		)
 		return AuthOut{}, ErrUnauthorized
@@ -89,9 +89,9 @@ func (u *AuthUC) Login(in LoginIn) (AuthOut, error) {
 
 	if err := u.writeAudit(
 		"auth.login.success",
-		toI64Ptr(user.ID),
-		in.IP,
-		in.UA,
+		int64Pointer(user.ID),
+		LoginInput.IP,
+		LoginInput.UA,
 		refreshOKMeta{
 			UserID:   user.ID,
 			FamilyID: familyID,
@@ -109,15 +109,15 @@ func (u *AuthUC) Login(in LoginIn) (AuthOut, error) {
 }
 
 // refresh token を回転させる
-func (u *AuthUC) Refresh(in RefreshIn) (AuthOut, error) {
-	if strings.TrimSpace(in.RefreshToken) == "" {
-		_ = u.writeAudit("auth.refresh.fail", nil, in.IP, in.UA, nil)
+func (u *AuthUC) Refresh(RefreshInput RefreshIn) (AuthOut, error) {
+	if strings.TrimSpace(RefreshInput.RefreshToken) == "" {
+		_ = u.writeAudit("auth.refresh.fail", nil, RefreshInput.IP, RefreshInput.UA, nil)
 		return AuthOut{}, ErrUnauthorized
 	}
 
-	rt, err := u.rt.GetByTokenHash(sha256Hex(in.RefreshToken))
+	rt, err := u.rt.GetByTokenHash(sha256Hex(RefreshInput.RefreshToken))
 	if err != nil {
-		_ = u.writeAudit("auth.refresh.fail", nil, in.IP, in.UA, nil)
+		_ = u.writeAudit("auth.refresh.fail", nil, RefreshInput.IP, RefreshInput.UA, nil)
 		return AuthOut{}, ErrUnauthorized
 	}
 
@@ -130,7 +130,7 @@ func (u *AuthUC) Refresh(in RefreshIn) (AuthOut, error) {
 	}
 
 	if time.Now().After(rt.ExpiresAt) || rt.RevokedAt != nil {
-		_ = u.writeAudit("auth.refresh.fail", toI64Ptr(rt.UserID), in.IP, in.UA, nil)
+		_ = u.writeAudit("auth.refresh.fail", int64Pointer(rt.UserID), RefreshInput.IP, RefreshInput.UA, nil)
 		return AuthOut{}, ErrUnauthorized
 	}
 
@@ -140,9 +140,9 @@ func (u *AuthUC) Refresh(in RefreshIn) (AuthOut, error) {
 
 		_ = u.writeAudit(
 			"auth.refresh.reuse_detected",
-			toI64Ptr(rt.UserID),
-			in.IP,
-			in.UA,
+			int64Pointer(rt.UserID),
+			RefreshInput.IP,
+			RefreshInput.UA,
 			refreshReuseMeta{
 				UserID:   rt.UserID,
 				FamilyID: rt.FamilyID,
@@ -179,9 +179,9 @@ func (u *AuthUC) Refresh(in RefreshIn) (AuthOut, error) {
 
 		_ = u.writeAudit(
 			"auth.refresh.reuse_detected",
-			toI64Ptr(rt.UserID),
-			in.IP,
-			in.UA,
+			int64Pointer(rt.UserID),
+			RefreshInput.IP,
+			RefreshInput.UA,
 			refreshReuseMeta{
 				UserID:   rt.UserID,
 				FamilyID: rt.FamilyID,
@@ -212,9 +212,9 @@ func (u *AuthUC) Refresh(in RefreshIn) (AuthOut, error) {
 
 	if err := u.writeAudit(
 		"auth.refresh.success",
-		toI64Ptr(user.ID),
-		in.IP,
-		in.UA,
+		int64Pointer(user.ID),
+		RefreshInput.IP,
+		RefreshInput.UA,
 		refreshOKMeta{
 			UserID:   user.ID,
 			FamilyID: rt.FamilyID,
@@ -249,7 +249,7 @@ func (u *AuthUC) Logout(in LogoutIn) error {
 
 	if err := u.writeAudit(
 		"auth.logout",
-		toI64Ptr(in.UserID),
+		int64Pointer(in.UserID),
 		in.IP,
 		in.UA,
 		logoutMeta{UserID: in.UserID},

@@ -1,35 +1,34 @@
-package dbrepository
+package repository
 
 import (
 	"errors"
 
 	"coffee-spa/entity"
-	"coffee-spa/repository"
 
 	"gorm.io/gorm"
 )
 
-type ItemRepository struct {
+type itemRepository struct {
 	db *gorm.DB
 }
 
-func NewItemRepository(db *gorm.DB) repository.ItemRepository {
-	return &ItemRepository{db: db}
+func NewItemRepository(db *gorm.DB) ItemRepository {
+	return &itemRepository{db}
 }
 
-func (r *ItemRepository) Create(i entity.Item) (entity.Item, error) {
+func (r *itemRepository) Create(i entity.Item) (entity.Item, error) {
 	err := r.db.Create(&i).Error
 	if err != nil {
 		if isDup(err) || isFK(err) {
-			return entity.Item{}, repository.ErrConflict
+			return entity.Item{}, ErrConflict
 		}
-		return entity.Item{}, repository.ErrInternal
+		return entity.Item{}, ErrInternal
 	}
 
 	return i, nil
 }
 
-func (r *ItemRepository) GetByID(id int64) (entity.Item, error) {
+func (r *itemRepository) GetByID(id int64) (entity.Item, error) {
 	var i entity.Item
 
 	err := r.db.
@@ -37,15 +36,15 @@ func (r *ItemRepository) GetByID(id int64) (entity.Item, error) {
 		Error
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return entity.Item{}, repository.ErrNotFound
+			return entity.Item{}, ErrNotFound
 		}
-		return entity.Item{}, repository.ErrInternal
+		return entity.Item{}, ErrInternal
 	}
 
 	return i, nil
 }
 
-func (r *ItemRepository) List(q repository.ItemQ) ([]entity.Item, error) {
+func (r *itemRepository) List(q ItemQ) ([]entity.Item, error) {
 	var xs []entity.Item
 
 	tx := r.db.Model(&entity.Item{})
@@ -84,13 +83,13 @@ func (r *ItemRepository) List(q repository.ItemQ) ([]entity.Item, error) {
 		Find(&xs).
 		Error
 	if err != nil {
-		return nil, repository.ErrInternal
+		return nil, ErrInternal
 	}
 
 	return xs, nil
 }
 
-func (r *ItemRepository) Top(cap int) (repository.TopItems, error) {
+func (r *itemRepository) Top(cap int) (TopItems, error) {
 	if cap <= 0 {
 		cap = 5
 	}
@@ -98,17 +97,17 @@ func (r *ItemRepository) Top(cap int) (repository.TopItems, error) {
 		cap = 50
 	}
 
-	var out repository.TopItems
+	var topItems TopItems
 
 	err := r.db.
 		Where("kind = ?", "news").
 		Order("published_at DESC").
 		Order("created_at DESC").
 		Limit(cap).
-		Find(&out.News).
+		Find(&topItems.News).
 		Error
 	if err != nil {
-		return repository.TopItems{}, repository.ErrInternal
+		return TopItems{}, ErrInternal
 	}
 
 	err = r.db.
@@ -116,10 +115,10 @@ func (r *ItemRepository) Top(cap int) (repository.TopItems, error) {
 		Order("published_at DESC").
 		Order("created_at DESC").
 		Limit(cap).
-		Find(&out.Recipe).
+		Find(&topItems.Recipe).
 		Error
 	if err != nil {
-		return repository.TopItems{}, repository.ErrInternal
+		return TopItems{}, ErrInternal
 	}
 
 	err = r.db.
@@ -127,10 +126,10 @@ func (r *ItemRepository) Top(cap int) (repository.TopItems, error) {
 		Order("published_at DESC").
 		Order("created_at DESC").
 		Limit(cap).
-		Find(&out.Deal).
+		Find(&topItems.Deal).
 		Error
 	if err != nil {
-		return repository.TopItems{}, repository.ErrInternal
+		return TopItems{}, ErrInternal
 	}
 
 	err = r.db.
@@ -138,11 +137,11 @@ func (r *ItemRepository) Top(cap int) (repository.TopItems, error) {
 		Order("published_at DESC").
 		Order("created_at DESC").
 		Limit(cap).
-		Find(&out.Shop).
+		Find(&topItems.Shop).
 		Error
 	if err != nil {
-		return repository.TopItems{}, repository.ErrInternal
+		return TopItems{}, ErrInternal
 	}
 
-	return out, nil
+	return topItems, nil
 }

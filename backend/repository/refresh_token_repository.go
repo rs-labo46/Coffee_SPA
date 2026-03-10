@@ -1,36 +1,35 @@
-package dbrepository
+package repository
 
 import (
 	"errors"
 	"time"
 
 	"coffee-spa/entity"
-	"coffee-spa/repository"
 
 	"gorm.io/gorm"
 )
 
-type RtRepository struct {
+type rtRepository struct {
 	db *gorm.DB
 }
 
-func NewRtRepository(db *gorm.DB) repository.RtRepository {
-	return &RtRepository{db: db}
+func NewRtRepository(db *gorm.DB) RtRepository {
+	return &rtRepository{db}
 }
 
-func (r *RtRepository) Create(rt entity.RefreshToken) (entity.RefreshToken, error) {
+func (r *rtRepository) Create(rt entity.RefreshToken) (entity.RefreshToken, error) {
 	err := r.db.Create(&rt).Error
 	if err != nil {
 		if isDup(err) || isFK(err) {
-			return entity.RefreshToken{}, repository.ErrConflict
+			return entity.RefreshToken{}, ErrConflict
 		}
-		return entity.RefreshToken{}, repository.ErrInternal
+		return entity.RefreshToken{}, ErrInternal
 	}
 
 	return rt, nil
 }
 
-func (r *RtRepository) GetByTokenHash(hash string) (entity.RefreshToken, error) {
+func (r *rtRepository) GetByTokenHash(hash string) (entity.RefreshToken, error) {
 	var rt entity.RefreshToken
 
 	err := r.db.
@@ -39,15 +38,15 @@ func (r *RtRepository) GetByTokenHash(hash string) (entity.RefreshToken, error) 
 		Error
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return entity.RefreshToken{}, repository.ErrNotFound
+			return entity.RefreshToken{}, ErrNotFound
 		}
-		return entity.RefreshToken{}, repository.ErrInternal
+		return entity.RefreshToken{}, ErrInternal
 	}
 
 	return rt, nil
 }
 
-func (r *RtRepository) Revoke(id int64) error {
+func (r *rtRepository) Revoke(id int64) error {
 	now := time.Now()
 
 	res := r.db.
@@ -56,16 +55,16 @@ func (r *RtRepository) Revoke(id int64) error {
 		Update("revoked_at", now)
 
 	if res.Error != nil {
-		return repository.ErrInternal
+		return ErrInternal
 	}
 	if res.RowsAffected == 0 {
-		return repository.ErrNotFound
+		return ErrNotFound
 	}
 
 	return nil
 }
 
-func (r *RtRepository) MarkUsed(id int64) error {
+func (r *rtRepository) MarkUsed(id int64) error {
 	now := time.Now()
 
 	res := r.db.
@@ -74,16 +73,16 @@ func (r *RtRepository) MarkUsed(id int64) error {
 		Update("used_at", now)
 
 	if res.Error != nil {
-		return repository.ErrInternal
+		return ErrInternal
 	}
 	if res.RowsAffected == 0 {
-		return repository.ErrConflict
+		return ErrConflict
 	}
 
 	return nil
 }
 
-func (r *RtRepository) SetReplacedBy(id int64, newID int64) error {
+func (r *rtRepository) SetReplacedBy(id int64, newID int64) error {
 	res := r.db.
 		Model(&entity.RefreshToken{}).
 		Where("id = ?", id).
@@ -91,18 +90,18 @@ func (r *RtRepository) SetReplacedBy(id int64, newID int64) error {
 
 	if res.Error != nil {
 		if isFK(res.Error) {
-			return repository.ErrConflict
+			return ErrConflict
 		}
-		return repository.ErrInternal
+		return ErrInternal
 	}
 	if res.RowsAffected == 0 {
-		return repository.ErrNotFound
+		return ErrNotFound
 	}
 
 	return nil
 }
 
-func (r *RtRepository) RevokeByFamilyID(familyID string) error {
+func (r *rtRepository) RevokeByFamilyID(familyID string) error {
 	now := time.Now()
 
 	res := r.db.
@@ -111,13 +110,13 @@ func (r *RtRepository) RevokeByFamilyID(familyID string) error {
 		Update("revoked_at", now)
 
 	if res.Error != nil {
-		return repository.ErrInternal
+		return ErrInternal
 	}
 
 	return nil
 }
 
-func (r *RtRepository) RevokeAllByUser(userID int64) error {
+func (r *rtRepository) RevokeAllByUser(userID int64) error {
 	now := time.Now()
 
 	res := r.db.
@@ -126,7 +125,7 @@ func (r *RtRepository) RevokeAllByUser(userID int64) error {
 		Update("revoked_at", now)
 
 	if res.Error != nil {
-		return repository.ErrInternal
+		return ErrInternal
 	}
 
 	return nil

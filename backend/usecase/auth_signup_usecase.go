@@ -8,6 +8,79 @@ import (
 	"time"
 )
 
+// user作成 + verify token発行 + メール送信
+func (u *AuthUC) Signup(SignupInput SignupIn) (entity.User, error) {
+	if err := u.val.Signup(SignupInput.Email, SignupInput.Pw); err != nil {
+		return entity.User{}, ErrInvalidRequest
+	}
+
+	ok, retry, err := u.rl.AllowSignup(SignupInput.IP)
+	if err != nil {
+		return entity.User{}, ErrInternal
+	}
+	if !ok {
+		return entity.User{}, ErrRateLimited{RetryAfterSec: retry}
+	}
+
+	email := normEmail(SignupInput.Email)
+
+	passHash, err := u.ph.Hash(SignupInput.Pw)
+	if err != nil {
+		return entity.User{}, ErrInternal
+	}
+
+	user, err := u.user.Create(entity.User{
+		Email:         email,
+		PassHash:      passHash,
+		Role:          string(entity.RoleUser),
+		TokenVer:      1,
+		EmailVerified: false,
+	})
+	if err != nil {
+		return entity.User{}, mapRepoErr(err)
+	}
+
+	raw, err := u.tk.NewOpaque()
+	if err != nil {
+		return entity.User{}, ErrInternal
+	}
+
+	if err := u.ev.RevokeUnusedByUser(user.ID); err != nil {
+		return entity.User{}, mapRepoErr(err)
+	}
+
+	err = u.ev.Create(entity.EmailVerify{
+		UserID:    user.ID,
+		TokenHash: sha256Hex(raw),
+		ExpiresAt: time.Now().Add(5 * time.Minute),
+	})
+	if err != nil {
+		return entity.User{}, mapRepoErr(err)
+	}
+
+	if err := u.mail.SendVerify(user.Email, raw); err != nil {
+		_ = u.writeAudit(
+			"auth.verify_email.mail_failed",
+			int64Pointer(user.ID),
+			SignupInput.IP,
+			SignupInput.UA,
+			verifyMeta{UserID: user.ID},
+		)
+	}
+
+	if err := u.writeAudit(
+		"auth.signup",
+		int64Pointer(user.ID),
+		SignupInput.IP,
+		SignupInput.UA,
+		signupMeta{Email: maskEmail(user.Email)},
+	); err != nil {
+		return entity.User{}, err
+	}
+
+	return user, nil
+}
+
 // 認証系の入力検証
 type AuthVal interface {
 	Signup(email string, pw string) error
@@ -153,7 +226,7 @@ func (u *AuthUC) VerifyEmail(in VerifyEmailIn) error {
 
 	if err := u.writeAudit(
 		"auth.verify_email",
-		toI64Ptr(ev.UserID),
+		int64Pointer(ev.UserID),
 		in.IP,
 		in.UA,
 		verifyMeta{UserID: ev.UserID},
@@ -227,7 +300,7 @@ func (u *AuthUC) ResendVerify(in ResendVerifyIn) error {
 	if err := u.mail.SendVerify(user.Email, raw); err != nil {
 		_ = u.writeAudit(
 			"auth.email.resend.mail_failed",
-			toI64Ptr(user.ID),
+			int64Pointer(user.ID),
 			in.IP,
 			in.UA,
 			verifyMeta{UserID: user.ID},
@@ -236,7 +309,7 @@ func (u *AuthUC) ResendVerify(in ResendVerifyIn) error {
 
 	if err := u.writeAudit(
 		"auth.email.resend",
-		toI64Ptr(user.ID),
+		int64Pointer(user.ID),
 		in.IP,
 		in.UA,
 		resendMeta{Email: maskEmail(user.Email)},

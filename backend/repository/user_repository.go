@@ -1,35 +1,34 @@
-package dbrepository
+package repository
 
 import (
 	"errors"
 
 	"coffee-spa/entity"
-	"coffee-spa/repository"
 
 	"gorm.io/gorm"
 )
 
-type UserRepository struct {
+type userRepository struct {
 	db *gorm.DB
 }
 
-func NewUserRepository(db *gorm.DB) repository.UserRepository {
-	return &UserRepository{db: db}
+func NewUserRepository(db *gorm.DB) UserRepository {
+	return &userRepository{db}
 }
 
-func (r *UserRepository) Create(u entity.User) (entity.User, error) {
+func (r *userRepository) Create(u entity.User) (entity.User, error) {
 	err := r.db.Create(&u).Error
 	if err != nil {
 		if isDup(err) {
-			return entity.User{}, repository.ErrConflict
+			return entity.User{}, ErrConflict
 		}
-		return entity.User{}, repository.ErrInternal
+		return entity.User{}, ErrInternal
 	}
 
 	return u, nil
 }
 
-func (r *UserRepository) GetByEmail(email string) (entity.User, error) {
+func (r *userRepository) GetByEmail(email string) (entity.User, error) {
 	var u entity.User
 
 	err := r.db.
@@ -38,15 +37,15 @@ func (r *UserRepository) GetByEmail(email string) (entity.User, error) {
 		Error
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return entity.User{}, repository.ErrNotFound
+			return entity.User{}, ErrNotFound
 		}
-		return entity.User{}, repository.ErrInternal
+		return entity.User{}, ErrInternal
 	}
 
 	return u, nil
 }
 
-func (r *UserRepository) GetByID(id int64) (entity.User, error) {
+func (r *userRepository) GetByID(id int64) (entity.User, error) {
 	var u entity.User
 
 	err := r.db.
@@ -54,57 +53,57 @@ func (r *UserRepository) GetByID(id int64) (entity.User, error) {
 		Error
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return entity.User{}, repository.ErrNotFound
+			return entity.User{}, ErrNotFound
 		}
-		return entity.User{}, repository.ErrInternal
+		return entity.User{}, ErrInternal
 	}
 
 	return u, nil
 }
 
-func (r *UserRepository) SetEmailVerified(userID int64) error {
+func (r *userRepository) SetEmailVerified(userID int64) error {
 	res := r.db.
 		Model(&entity.User{}).
 		Where("id = ?", userID).
 		Update("email_verified", true)
 
 	if res.Error != nil {
-		return repository.ErrInternal
+		return ErrInternal
 	}
 	if res.RowsAffected == 0 {
-		return repository.ErrNotFound
+		return ErrNotFound
 	}
 
 	return nil
 }
 
-func (r *UserRepository) UpdatePassHash(userID int64, newHash string) error {
+func (r *userRepository) UpdatePassHash(userID int64, newHash string) error {
 	res := r.db.
 		Model(&entity.User{}).
 		Where("id = ?", userID).
 		Update("pass_hash", newHash)
 
 	if res.Error != nil {
-		return repository.ErrInternal
+		return ErrInternal
 	}
 	if res.RowsAffected == 0 {
-		return repository.ErrNotFound
+		return ErrNotFound
 	}
 
 	return nil
 }
 
-func (r *UserRepository) BumpTokenVer(userID int64) (int, error) {
+func (r *userRepository) BumpTokenVer(userID int64) (int, error) {
 	res := r.db.
 		Model(&entity.User{}).
 		Where("id = ?", userID).
 		Update("token_ver", gorm.Expr("token_ver + 1"))
 
 	if res.Error != nil {
-		return 0, repository.ErrInternal
+		return 0, ErrInternal
 	}
 	if res.RowsAffected == 0 {
-		return 0, repository.ErrNotFound
+		return 0, ErrNotFound
 	}
 
 	var u entity.User
@@ -114,9 +113,9 @@ func (r *UserRepository) BumpTokenVer(userID int64) (int, error) {
 		Error
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return 0, repository.ErrNotFound
+			return 0, ErrNotFound
 		}
-		return 0, repository.ErrInternal
+		return 0, ErrInternal
 	}
 
 	return u.TokenVer, nil
