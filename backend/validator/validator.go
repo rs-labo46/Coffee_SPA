@@ -16,13 +16,13 @@ type AuthVal interface {
 
 // itemのvalidator
 type ItemVal interface {
-	NewItem(in usecase.AddItemIn) error
+	NewItem(input usecase.AddItemIn) error
 	ListItem(q usecase.ItemQ) error
 }
 
 // sourceのvalidator
 type SourceVal interface {
-	NewSource(in usecase.AddSourceIn) error
+	NewSource(input usecase.AddSourceIn) error
 }
 
 type AuthValidator struct {
@@ -88,33 +88,33 @@ func (v *AuthValidator) NewPw(pw string) error {
 	return v.pw.Ok(pw)
 }
 
-func (v *ItemValidator) NewItem(in usecase.AddItemIn) error {
-	title := strings.TrimSpace(in.Title)
+func (v *ItemValidator) NewItem(itemInput usecase.AddItemIn) error {
+	title := strings.TrimSpace(itemInput.Title)
 	if title == "" || len(title) > 120 {
 		return usecase.ErrInvalidRequest
 	}
 
-	if in.Summary != nil && len(*in.Summary) > 500 {
+	if itemInput.Summary != nil && len(*itemInput.Summary) > 500 {
 		return usecase.ErrInvalidRequest
 	}
 
-	if in.URL != nil {
-		if err := v.url.Ok(*in.URL); err != nil {
+	if itemInput.URL != nil {
+		if err := v.url.Ok(*itemInput.URL); err != nil {
 			return err
 		}
 	}
 
-	if in.ImageURL != nil {
-		if err := v.url.Ok(*in.ImageURL); err != nil {
+	if itemInput.ImageURL != nil {
+		if err := v.url.Ok(*itemInput.ImageURL); err != nil {
 			return err
 		}
 	}
 
-	if err := v.kind.Ok(in.Kind); err != nil {
+	if err := v.kind.Ok(itemInput.Kind); err != nil {
 		return err
 	}
 
-	if in.SourceID <= 0 {
+	if itemInput.SourceID <= 0 {
 		return usecase.ErrInvalidRequest
 	}
 
@@ -132,15 +132,15 @@ func (v *ItemValidator) ListItem(q usecase.ItemQ) error {
 	return v.kind.Ok(q.Kind)
 }
 
-func (v *SourceValidator) NewSource(in usecase.AddSourceIn) error {
-	name := strings.TrimSpace(in.Name)
+func (v *SourceValidator) NewSource(sourceInput usecase.AddSourceIn) error {
+	name := strings.TrimSpace(sourceInput.Name)
 	if name == "" || len(name) > 80 {
 		return usecase.ErrInvalidRequest
 	}
 
-	if in.SiteURL == nil {
+	if sourceInput.SiteURL == nil {
 		return nil
 	}
 
-	return v.url.Ok(*in.SiteURL)
+	return v.url.Ok(*sourceInput.SiteURL)
 }

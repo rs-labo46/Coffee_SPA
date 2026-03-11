@@ -12,7 +12,7 @@ import (
 )
 
 type ItemVal interface {
-	NewItem(in AddItemIn) error
+	NewItem(input AddItemIn) error
 	ListItem(q ItemQ) error
 }
 
@@ -42,29 +42,29 @@ func NewItemUC(
 	}
 }
 
-func (u *ItemUC) Add(actor Actor, in AddItemIn) (entity.Item, error) {
+func (u *ItemUC) Add(actor Actor, itemInput AddItemIn) (entity.Item, error) {
 	//認可はmiddlewareで実施。
-	if err := u.val.NewItem(in); err != nil {
+	if err := u.val.NewItem(itemInput); err != nil {
 		return entity.Item{}, ErrInvalidRequest
 	}
 
-	publishedAt, err := time.Parse(time.RFC3339, in.PublishedAt)
+	publishedAt, err := time.Parse(time.RFC3339, itemInput.PublishedAt)
 	if err != nil {
 		return entity.Item{}, ErrInvalidRequest
 	}
 
-	_, err = u.source.GetByID(in.SourceID)
+	_, err = u.source.GetByID(itemInput.SourceID)
 	if err != nil {
 		return entity.Item{}, mapRepoErr(err)
 	}
 
 	item, err := u.item.Create(entity.Item{
-		Title:       in.Title,
-		Summary:     in.Summary,
-		URL:         in.URL,
-		ImageURL:    in.ImageURL,
-		Kind:        in.Kind,
-		SourceID:    in.SourceID,
+		Title:       itemInput.Title,
+		Summary:     itemInput.Summary,
+		URL:         itemInput.URL,
+		ImageURL:    itemInput.ImageURL,
+		Kind:        itemInput.Kind,
+		SourceID:    itemInput.SourceID,
 		PublishedAt: publishedAt,
 	})
 	if err != nil {
