@@ -16,16 +16,18 @@ func New(
 	srcCtl controller.SrcCtl,
 	jwtSecret string,
 	userRepo repository.UserRepository,
+	rtRepo repository.RtRepository,
+	rl *repository.RateLimiter,
 	feURL string,
 ) {
-	// 全体共通
+	//全体共通middleware
 	e.Use(middleware.CORS(feURL))
 	e.Use(middleware.SecurityHeaders())
 
-	// health
+	//health check
 	e.GET("/health", healthCtl.Get)
 
-	// public
+	//public
 	pub := e.Group("")
 	pub.POST("/auth/signup", authCtl.Signup)
 	pub.POST("/auth/verify-email", authCtl.VerifyEmail)
@@ -37,20 +39,21 @@ func New(
 	pub.GET("/items", itemCtl.List)
 	pub.GET("/sources", srcCtl.List)
 
-	// csrf required
-	// refresh は OAS / controller と合わせて cookie + csrf で扱う。
+	//csrf required
+	//refreshはcookie+csrf+rate limitが必要
 	csrf := e.Group("")
 	csrf.Use(middleware.CSRF())
+	csrf.Use(middleware.RefreshRateLimit(rtRepo, rl))
 	csrf.POST("/auth/refresh", authCtl.Refresh)
 
-	// private
+	//private
 	priv := e.Group("")
 	priv.Use(middleware.JWTAuth(jwtSecret))
 	priv.Use(middleware.TokenVersion(userRepo))
 	priv.GET("/me", authCtl.Me)
 	priv.POST("/auth/logout", authCtl.Logout)
 
-	// admin
+	//admin
 	admin := e.Group("")
 	admin.Use(middleware.JWTAuth(jwtSecret))
 	admin.Use(middleware.TokenVersion(userRepo))
