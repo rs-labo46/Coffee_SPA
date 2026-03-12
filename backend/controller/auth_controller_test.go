@@ -12,6 +12,8 @@ import (
 	"github.com/labstack/echo/v4"
 )
 
+// auth usecaseの代役。
+// controllerがusecaseをどう使うかだけを確認
 type mockAuthUC struct {
 	signupFn      func(in usecase.SignupIn) (entity.User, error)
 	verifyEmailFn func(in usecase.VerifyEmailIn) error
@@ -24,21 +26,35 @@ type mockAuthUC struct {
 	meFn          func(userID int64) (entity.User, error)
 }
 
-func (m *mockAuthUC) Signup(in usecase.SignupIn) (entity.User, error) { return m.signupFn(in) }
-func (m *mockAuthUC) VerifyEmail(in usecase.VerifyEmailIn) error      { return m.verifyEmailFn(in) }
-func (m *mockAuthUC) ResendVerify(in usecase.ResendVerifyIn) error    { return m.resendFn(in) }
+func (m *mockAuthUC) Signup(in usecase.SignupIn) (entity.User, error) {
+	return m.signupFn(in)
+}
+func (m *mockAuthUC) VerifyEmail(in usecase.VerifyEmailIn) error {
+	return m.verifyEmailFn(in)
+}
+func (m *mockAuthUC) ResendVerify(in usecase.ResendVerifyIn) error {
+	return m.resendFn(in)
+}
 func (m *mockAuthUC) Login(in usecase.LoginIn) (usecase.AuthOut, error) {
 	return m.loginFn(in)
 }
 func (m *mockAuthUC) Refresh(in usecase.RefreshIn) (usecase.AuthOut, error) {
 	return m.refreshFn(in)
 }
-func (m *mockAuthUC) Logout(in usecase.LogoutIn) error     { return m.logoutFn(in) }
-func (m *mockAuthUC) ForgotPw(in usecase.ForgotPwIn) error { return m.forgotFn(in) }
-func (m *mockAuthUC) ResetPw(in usecase.ResetPwIn) error   { return m.resetFn(in) }
-func (m *mockAuthUC) Me(userID int64) (entity.User, error) { return m.meFn(userID) }
+func (m *mockAuthUC) Logout(in usecase.LogoutIn) error {
+	return m.logoutFn(in)
+}
+func (m *mockAuthUC) ForgotPw(in usecase.ForgotPwIn) error {
+	return m.forgotFn(in)
+}
+func (m *mockAuthUC) ResetPw(in usecase.ResetPwIn) error {
+	return m.resetFn(in)
+}
+func (m *mockAuthUC) Me(userID int64) (entity.User, error) {
+	return m.meFn(userID)
+}
 
-// /meでno-store が付くことを確認する。
+// /me のレスポンスに Cache-Control: no-store が付くことを確認。
 func TestAuthCtlMe_NoStore(t *testing.T) {
 	t.Parallel()
 
@@ -46,17 +62,35 @@ func TestAuthCtlMe_NoStore(t *testing.T) {
 	req := httptest.NewRequest(http.MethodGet, "/me", nil)
 	rec := httptest.NewRecorder()
 	c := e.NewContext(req, rec)
+
+	//middlewareがuser_id をcontextに入れた想定を作る。
 	c.Set("user_id", int64(1))
 
 	ctl := NewAuthCtl(&mockAuthUC{
-		signupFn:      func(in usecase.SignupIn) (entity.User, error) { return entity.User{}, nil },
-		verifyEmailFn: func(in usecase.VerifyEmailIn) error { return nil },
-		resendFn:      func(in usecase.ResendVerifyIn) error { return nil },
-		loginFn:       func(in usecase.LoginIn) (usecase.AuthOut, error) { return usecase.AuthOut{}, nil },
-		refreshFn:     func(in usecase.RefreshIn) (usecase.AuthOut, error) { return usecase.AuthOut{}, nil },
-		logoutFn:      func(in usecase.LogoutIn) error { return nil },
-		forgotFn:      func(in usecase.ForgotPwIn) error { return nil },
-		resetFn:       func(in usecase.ResetPwIn) error { return nil },
+		signupFn: func(in usecase.SignupIn) (entity.User, error) {
+			return entity.User{}, nil
+		},
+		verifyEmailFn: func(in usecase.VerifyEmailIn) error {
+			return nil
+		},
+		resendFn: func(in usecase.ResendVerifyIn) error {
+			return nil
+		},
+		loginFn: func(in usecase.LoginIn) (usecase.AuthOut, error) {
+			return usecase.AuthOut{}, nil
+		},
+		refreshFn: func(in usecase.RefreshIn) (usecase.AuthOut, error) {
+			return usecase.AuthOut{}, nil
+		},
+		logoutFn: func(in usecase.LogoutIn) error {
+			return nil
+		},
+		forgotFn: func(in usecase.ForgotPwIn) error {
+			return nil
+		},
+		resetFn: func(in usecase.ResetPwIn) error {
+			return nil
+		},
 		meFn: func(userID int64) (entity.User, error) {
 			return entity.User{
 				ID:            1,
@@ -71,9 +105,13 @@ func TestAuthCtlMe_NoStore(t *testing.T) {
 	if err := ctl.Me(c); err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
+
+	//正常終了なので200を期待。
 	if rec.Code != http.StatusOK {
 		t.Fatalf("status = %d, want 200", rec.Code)
 	}
+
+	//個人情報レスポンスはキャッシュさせない。
 	if got := rec.Header().Get("Cache-Control"); got != "no-store" {
 		t.Fatalf("Cache-Control = %q, want no-store", got)
 	}
@@ -82,6 +120,8 @@ func TestAuthCtlMe_NoStore(t *testing.T) {
 	if err := json.Unmarshal(rec.Body.Bytes(), &body); err != nil {
 		t.Fatalf("unmarshal error: %v", err)
 	}
+
+	//期待したuser情報がJSONに載っているか確認。
 	if body.User.ID != 1 {
 		t.Fatalf("user id = %d, want 1", body.User.ID)
 	}
