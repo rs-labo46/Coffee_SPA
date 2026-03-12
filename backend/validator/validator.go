@@ -71,7 +71,7 @@ func NewSourceValidator(
 }
 
 func (v *AuthValidator) Signup(email string, pw string) error {
-	if err := v.email.Ok(email); err != nil {
+	if err := v.email.Ok(strings.TrimSpace(email)); err != nil {
 		return err
 	}
 	if err := v.pw.Ok(pw); err != nil {
@@ -94,27 +94,36 @@ func (v *ItemValidator) NewItem(itemInput usecase.AddItemIn) error {
 		return usecase.ErrInvalidRequest
 	}
 
-	if itemInput.Summary != nil && len(*itemInput.Summary) > 500 {
-		return usecase.ErrInvalidRequest
+	if itemInput.Summary != nil {
+		summary := strings.TrimSpace(*itemInput.Summary)
+		if len(summary) > 500 {
+			return usecase.ErrInvalidRequest
+		}
 	}
 
 	if itemInput.URL != nil {
-		if err := v.url.Ok(*itemInput.URL); err != nil {
+		raw := strings.TrimSpace(*itemInput.URL)
+		if err := v.url.Ok(raw); err != nil {
 			return err
 		}
 	}
 
 	if itemInput.ImageURL != nil {
-		if err := v.url.Ok(*itemInput.ImageURL); err != nil {
+		raw := strings.TrimSpace(*itemInput.ImageURL)
+		if err := v.url.Ok(raw); err != nil {
 			return err
 		}
 	}
 
-	if err := v.kind.Ok(itemInput.Kind); err != nil {
+	if err := v.kind.Ok(strings.TrimSpace(itemInput.Kind)); err != nil {
 		return err
 	}
 
 	if itemInput.SourceID <= 0 {
+		return usecase.ErrInvalidRequest
+	}
+
+	if strings.TrimSpace(itemInput.PublishedAt) == "" {
 		return usecase.ErrInvalidRequest
 	}
 
@@ -129,7 +138,8 @@ func (v *ItemValidator) ListItem(q usecase.ItemQ) error {
 	if q.Kind == "" {
 		return nil
 	}
-	return v.kind.Ok(q.Kind)
+
+	return v.kind.Ok(strings.TrimSpace(q.Kind))
 }
 
 func (v *SourceValidator) NewSource(sourceInput usecase.AddSourceIn) error {
@@ -142,5 +152,5 @@ func (v *SourceValidator) NewSource(sourceInput usecase.AddSourceIn) error {
 		return nil
 	}
 
-	return v.url.Ok(*sourceInput.SiteURL)
+	return v.url.Ok(strings.TrimSpace(*sourceInput.SiteURL))
 }

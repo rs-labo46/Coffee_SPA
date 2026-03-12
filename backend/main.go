@@ -1,6 +1,12 @@
 package main
 
 import (
+	"context"
+	"log"
+	"os"
+	"strings"
+	"time"
+
 	"coffee-spa/config"
 	"coffee-spa/controller"
 	"coffee-spa/db"
@@ -9,11 +15,6 @@ import (
 	"coffee-spa/router"
 	"coffee-spa/usecase"
 	"coffee-spa/validator"
-	"context"
-	"log"
-	"os"
-	"strings"
-	"time"
 
 	"github.com/labstack/echo/v4"
 	"github.com/redis/go-redis/v9"
@@ -138,6 +139,8 @@ func main() {
 		srcCtl,
 		c.JWTSecret,
 		userRepo,
+		rtRepo,
+		rl,
 		c.FEURL,
 	)
 

@@ -90,14 +90,24 @@ func (r *itemRepository) List(q ItemQ) ([]entity.Item, error) {
 }
 
 func (r *itemRepository) Top(cap int) (TopItems, error) {
-	if cap <= 0 {
-		cap = 5
+	if cap < 0 {
+		cap = 0
 	}
 	if cap > 50 {
 		cap = 50
 	}
 
-	var topItems TopItems
+	topItems := TopItems{
+		News:   []entity.Item{},
+		Recipe: []entity.Item{},
+		Deal:   []entity.Item{},
+		Shop:   []entity.Item{},
+	}
+
+	// cap=0 は4キー固定で空配列を返す。
+	if cap == 0 {
+		return topItems, nil
+	}
 
 	err := r.db.
 		Where("kind = ?", "news").

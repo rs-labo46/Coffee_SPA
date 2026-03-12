@@ -61,11 +61,27 @@ func (r *evRepository) Use(id int64) error {
 	if res.Error != nil {
 		return ErrInternal
 	}
-	if res.RowsAffected == 0 {
-		return ErrNotFound
+	if res.RowsAffected > 0 {
+		return nil
 	}
 
-	return nil
+	var ev entity.EmailVerify
+	err := r.db.
+		Select("id", "used_at").
+		First(&ev, id).
+		Error
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return ErrNotFound
+		}
+		return ErrInternal
+	}
+
+	if ev.UsedAt != nil {
+		return ErrConflict
+	}
+
+	return ErrInternal
 }
 
 func (r *evRepository) RevokeUnusedByUser(userID int64) error {
@@ -127,11 +143,27 @@ func (r *pwRepository) Use(id int64) error {
 	if res.Error != nil {
 		return ErrInternal
 	}
-	if res.RowsAffected == 0 {
-		return ErrNotFound
+	if res.RowsAffected > 0 {
+		return nil
 	}
 
-	return nil
+	var pw entity.PwReset
+	err := r.db.
+		Select("id", "used_at").
+		First(&pw, id).
+		Error
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return ErrNotFound
+		}
+		return ErrInternal
+	}
+
+	if pw.UsedAt != nil {
+		return ErrConflict
+	}
+
+	return ErrInternal
 }
 
 func (r *pwRepository) RevokeUnusedByUser(userID int64) error {

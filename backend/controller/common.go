@@ -14,10 +14,11 @@ import (
 )
 
 type ErrRes struct {
-	Error string `json:"error"`
+	Error   string `json:"error"`
+	Message string `json:"message,omitempty"`
 }
 
-// middlewareがcontextに入れたuser_id / roleをusecase が受け取れる Actor に変換。
+// middlewareがcontextに入れたuser_id / roleをusecaseが受け取れるActorに変換。
 func actorFromCtx(c echo.Context) usecase.Actor {
 	userID, _ := c.Get("user_id").(int64)
 	role, _ := c.Get("role").(string)
@@ -30,7 +31,7 @@ func actorFromCtx(c echo.Context) usecase.Actor {
 	}
 }
 
-// middlewareがcontextに入れたuser_id を取り出す。
+// middlewareがcontextに入れたuser_idを取り出す。
 func userIDFromCtx(c echo.Context) int64 {
 	userID, _ := c.Get("user_id").(int64)
 	return userID
@@ -66,14 +67,14 @@ func qInt(c echo.Context, key string, def int) int {
 	return n
 }
 
-// cookie に Secure を付けるかを環境変数から判定。
+// cookieにSecureを付けるかを環境変数から判定。
 func secureCookie() bool {
 	v := strings.ToLower(strings.TrimSpace(os.Getenv("COOKIE_SECURE")))
 	return v == "1" || v == "true" || v == "yes"
 }
 
 // refresh_token cookieをセット。
-// Path は /auth に固定。
+// Pathは/authに固定。
 func setRefreshCookie(c echo.Context, token string) {
 	c.SetCookie(&http.Cookie{
 		Name:     "refresh_token",
@@ -87,7 +88,7 @@ func setRefreshCookie(c echo.Context, token string) {
 }
 
 // csrf_token cookieをセット。
-// Path は / に固定。
+// Pathは/に固定。
 func setCSRFCookie(c echo.Context, token string) {
 	c.SetCookie(&http.Cookie{
 		Name:     "csrf_token",
@@ -129,7 +130,7 @@ func clearCSRFCookie(c echo.Context) {
 }
 
 // refresh_token cookieの値を返す。
-// cookie が無ければ空文字を返す。
+// cookieが無ければ空文字を返す。
 func refreshCookie(c echo.Context) string {
 	x, err := c.Cookie("refresh_token")
 	if err != nil {
@@ -138,7 +139,7 @@ func refreshCookie(c echo.Context) string {
 	return x.Value
 }
 
-// usecase のエラーを HTTP ステータスへ変換。
+// usecaseのエラーをHTTPステータスへ変換。
 func writeErr(c echo.Context, err error) error {
 	if err == nil {
 		return nil
@@ -149,38 +150,45 @@ func writeErr(c echo.Context, err error) error {
 	switch {
 	case errors.Is(err, usecase.ErrInvalidRequest):
 		return c.JSON(http.StatusBadRequest, ErrRes{
-			Error: "invalid_request",
+			Error:   "invalid_request",
+			Message: "request body or query is invalid",
 		})
 
 	case errors.Is(err, usecase.ErrUnauthorized):
 		return c.JSON(http.StatusUnauthorized, ErrRes{
-			Error: "unauthorized",
+			Error:   "unauthorized",
+			Message: "authentication failed",
 		})
 
 	case errors.Is(err, usecase.ErrForbidden):
 		return c.JSON(http.StatusForbidden, ErrRes{
-			Error: "forbidden",
+			Error:   "forbidden",
+			Message: "permission denied",
 		})
 
 	case errors.Is(err, usecase.ErrNotFound):
 		return c.JSON(http.StatusNotFound, ErrRes{
-			Error: "not_found",
+			Error:   "not_found",
+			Message: "resource not found",
 		})
 
 	case errors.Is(err, usecase.ErrConflict):
 		return c.JSON(http.StatusConflict, ErrRes{
-			Error: "conflict",
+			Error:   "conflict",
+			Message: "resource state conflict",
 		})
 
 	case errors.As(err, &rl):
 		c.Response().Header().Set("Retry-After", strconv.Itoa(rl.RetryAfterSec))
 		return c.JSON(http.StatusTooManyRequests, ErrRes{
-			Error: "rate_limited",
+			Error:   "rate_limited",
+			Message: "too many requests",
 		})
 
 	default:
 		return c.JSON(http.StatusInternalServerError, ErrRes{
-			Error: "internal",
+			Error:   "internal",
+			Message: "internal server error",
 		})
 	}
 }
