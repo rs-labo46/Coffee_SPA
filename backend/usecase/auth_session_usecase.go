@@ -121,14 +121,6 @@ func (u *AuthUC) Refresh(RefreshInput RefreshIn) (AuthOut, error) {
 		return AuthOut{}, ErrUnauthorized
 	}
 
-	ok, retry, err := u.rl.AllowRefresh(rt.UserID)
-	if err != nil {
-		return AuthOut{}, ErrInternal
-	}
-	if !ok {
-		return AuthOut{}, ErrRateLimited{RetryAfterSec: retry}
-	}
-
 	if time.Now().After(rt.ExpiresAt) || rt.RevokedAt != nil {
 		_ = u.writeAudit("auth.refresh.fail", int64Pointer(rt.UserID), RefreshInput.IP, RefreshInput.UA, nil)
 		return AuthOut{}, ErrUnauthorized
