@@ -3,12 +3,12 @@ import { Link } from "react-router-dom";
 import { useAuth } from "../auth/auth";
 import { ApiError } from "../lib/api";
 
-export function SignupPage() {
-  const { signup } = useAuth();
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [msg, setMsg] = useState("");
-  const [loading, setLoading] = useState(false);
+export function ResendVerifyPage() {
+  const { resendVerify } = useAuth();
+
+  const [email, setEmail] = useState<string>("");
+  const [msg, setMsg] = useState<string>("");
+  const [loading, setLoading] = useState<boolean>(false);
 
   async function onSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -17,7 +17,7 @@ export function SignupPage() {
     setLoading(true);
 
     try {
-      const message = await signup(email, password);
+      const message = await resendVerify(email);
       setMsg(
         `${message} backendログにverifyリンクが出るので、そのリンクを開いてください。`,
       );
@@ -25,7 +25,7 @@ export function SignupPage() {
       if (err instanceof ApiError) {
         setMsg(err.message);
       } else {
-        setMsg("登録に失敗しました。");
+        setMsg("確認メールの再送に失敗しました");
       }
     } finally {
       setLoading(false);
@@ -34,7 +34,7 @@ export function SignupPage() {
 
   return (
     <div>
-      <h1>サインアップ</h1>
+      <h1>確認メール再送</h1>
 
       <form onSubmit={onSubmit}>
         <div>
@@ -43,22 +43,11 @@ export function SignupPage() {
             onChange={(e) => setEmail(e.target.value)}
             placeholder="email"
             type="email"
-            autoComplete="email"
-          />
-        </div>
-
-        <div>
-          <input
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            placeholder="password"
-            type="password"
-            autoComplete="new-password"
           />
         </div>
 
         <button type="submit" disabled={loading}>
-          {loading ? "loading..." : "signup"}
+          {loading ? "loading..." : "resend"}
         </button>
       </form>
 
@@ -66,10 +55,6 @@ export function SignupPage() {
 
       <p>
         <Link to="/login">ログインへ</Link>
-      </p>
-
-      <p>
-        <Link to="/resend-verify">確認メールを再送する</Link>
       </p>
     </div>
   );

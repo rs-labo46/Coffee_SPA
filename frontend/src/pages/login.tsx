@@ -1,14 +1,22 @@
 import { useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, Navigate, useNavigate } from "react-router-dom";
 import { useAuth } from "../auth/auth";
 import { ApiError } from "../lib/api";
 
-export function SignupPage() {
-  const { signup } = useAuth();
+export function LoginPage() {
+  const nav = useNavigate();
+  const { login, user } = useAuth();
+
+  // 入力状態
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [msg, setMsg] = useState("");
   const [loading, setLoading] = useState(false);
+
+  //すでにログイン済みなら/meへ飛ばす
+  if (user) {
+    return <Navigate to="/me" replace />;
+  }
 
   async function onSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -17,15 +25,19 @@ export function SignupPage() {
     setLoading(true);
 
     try {
-      const message = await signup(email, password);
-      setMsg(
-        `${message} backendログにverifyリンクが出るので、そのリンクを開いてください。`,
-      );
+      await login(email, password);
+      nav("/me");
     } catch (err: unknown) {
       if (err instanceof ApiError) {
-        setMsg(err.message);
+        if (err.status === 401) {
+          setMsg(
+            "ログインに失敗しました。メール確認が未完了、または認証情報が正しくない可能性があります。",
+          );
+        } else {
+          setMsg(err.message);
+        }
       } else {
-        setMsg("登録に失敗しました。");
+        setMsg("ログインに失敗しました。");
       }
     } finally {
       setLoading(false);
@@ -34,7 +46,7 @@ export function SignupPage() {
 
   return (
     <div>
-      <h1>サインアップ</h1>
+      <h1>login</h1>
 
       <form onSubmit={onSubmit}>
         <div>
@@ -53,19 +65,19 @@ export function SignupPage() {
             onChange={(e) => setPassword(e.target.value)}
             placeholder="password"
             type="password"
-            autoComplete="new-password"
+            autoComplete="current-password"
           />
         </div>
 
         <button type="submit" disabled={loading}>
-          {loading ? "loading..." : "signup"}
+          {loading ? "loading..." : "login"}
         </button>
       </form>
 
       {msg ? <p>{msg}</p> : null}
 
       <p>
-        <Link to="/login">ログインへ</Link>
+        <Link to="/signup">サインアップへ</Link>
       </p>
 
       <p>
