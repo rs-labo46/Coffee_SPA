@@ -7,13 +7,11 @@ export function LoginPage() {
   const nav = useNavigate();
   const { login, user } = useAuth();
 
-  // 入力状態
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [msg, setMsg] = useState("");
   const [loading, setLoading] = useState(false);
 
-  //すでにログイン済みなら/meへ飛ばす
   if (user) {
     return <Navigate to="/me" replace />;
   }
@@ -31,7 +29,7 @@ export function LoginPage() {
       if (err instanceof ApiError) {
         if (err.status === 401) {
           setMsg(
-            "ログインに失敗しました。メール確認が未完了、または認証情報が正しくない可能性があります。",
+            "ログインに失敗しました。メール確認未完了、または認証情報が正しくありません。",
           );
         } else {
           setMsg(err.message);

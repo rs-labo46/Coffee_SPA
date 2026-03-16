@@ -153,16 +153,17 @@ func newTestEcho() *echo.Echo {
 	itemCtl := controller.NewItemCtl(&mockItemUCForRouter{})
 	srcCtl := controller.NewSrcCtl(&mockSourceUCForRouter{})
 
-	//RefreshRateLimit用のlimiter。
-	rl := repository.NewRateLimiter(
-		nil,
-		repository.Rule{},
-		repository.Rule{},
-		repository.Rule{},
-		repository.Rule{},
-		repository.Rule{},
-		repository.Rule{},
-		repository.Rule{},
+	//RefreshRateLimit用のlimiter
+	rlStore := repository.NewRateLimitStore(nil)
+	rl := usecase.NewRateLimitUC(
+		rlStore,
+		usecase.RateRule{},
+		usecase.RateRule{},
+		usecase.RateRule{},
+		usecase.RateRule{},
+		usecase.RateRule{},
+		usecase.RateRule{},
+		usecase.RateRule{},
 	)
 
 	New(

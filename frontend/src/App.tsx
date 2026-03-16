@@ -1,18 +1,20 @@
 import "./App.css";
 import { BrowserRouter, Link, Navigate, Route, Routes } from "react-router-dom";
 import { AuthProvider, useAuth } from "./auth/auth";
+
 import { LoginPage } from "./pages/login";
 import { MePage } from "./pages/me";
 import { ResendVerifyPage } from "./pages/resend-verify";
 import { SignupPage } from "./pages/signup";
 import { TopPage } from "./pages/top";
 import { VerifyEmailPage } from "./pages/verify-email";
+import { AdminPage } from "./pages/admin";
 
-type RequireAuthProps = {
+type GuardProps = {
   children: React.ReactNode;
 };
 
-function RequireAuth({ children }: RequireAuthProps) {
+function RequireAuth({ children }: GuardProps) {
   const { user, loading } = useAuth();
 
   if (loading) {
@@ -26,14 +28,33 @@ function RequireAuth({ children }: RequireAuthProps) {
   return <>{children}</>;
 }
 
+function RequireAdmin({ children }: GuardProps) {
+  const { user, loading } = useAuth();
+
+  if (loading) {
+    return <div>loading...</div>;
+  }
+
+  if (!user) {
+    return <Navigate to="/login" replace />;
+  }
+
+  if (user.role !== "admin") {
+    return <Navigate to="/me" replace />;
+  }
+
+  return <>{children}</>;
+}
+
+function NotFoundPage() {
+  return <div>page not found</div>;
+}
+
 function AppRoutes() {
   const { user, logout } = useAuth();
 
   async function onLogout() {
     await logout();
-  }
-  function NotFoundPage() {
-    return <div>page not found</div>;
   }
 
   return (
@@ -42,11 +63,17 @@ function AppRoutes() {
         <nav className="nav">
           <Link to="/">top</Link>
           <Link to="/me">me</Link>
+
           {!user ? <Link to="/login">login</Link> : null}
           {!user ? <Link to="/signup">signup</Link> : null}
           {!user ? <Link to="/resend-verify">resend verify</Link> : null}
+
+          {user?.role === "admin" ? <Link to="/admin">admin</Link> : null}
+
           {user ? (
-            <button onClick={() => void onLogout()}>logout</button>
+            <button type="button" onClick={() => void onLogout()}>
+              logout
+            </button>
           ) : null}
         </nav>
       </header>
@@ -58,6 +85,7 @@ function AppRoutes() {
           <Route path="/signup" element={<SignupPage />} />
           <Route path="/verify-email" element={<VerifyEmailPage />} />
           <Route path="/resend-verify" element={<ResendVerifyPage />} />
+
           <Route
             path="/me"
             element={
@@ -66,6 +94,16 @@ function AppRoutes() {
               </RequireAuth>
             }
           />
+
+          <Route
+            path="/admin"
+            element={
+              <RequireAdmin>
+                <AdminPage />
+              </RequireAdmin>
+            }
+          />
+
           <Route path="*" element={<NotFoundPage />} />
         </Routes>
       </main>

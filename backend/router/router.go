@@ -4,6 +4,7 @@ import (
 	"coffee-spa/controller"
 	"coffee-spa/middleware"
 	"coffee-spa/repository"
+	"coffee-spa/usecase"
 
 	"github.com/labstack/echo/v4"
 )
@@ -17,7 +18,7 @@ func New(
 	jwtSecret string,
 	userRepo repository.UserRepository,
 	rtRepo repository.RtRepository,
-	rl *repository.RateLimiter,
+	rl usecase.RateLimiter,
 	feURL string,
 ) {
 	//全体共通middleware

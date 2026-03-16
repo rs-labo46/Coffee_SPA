@@ -5,6 +5,7 @@ import { ApiError } from "../lib/api";
 
 export function SignupPage() {
   const { signup } = useAuth();
+
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [msg, setMsg] = useState("");

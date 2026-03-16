@@ -131,7 +131,7 @@ type AuthUC struct {
 	ph    PwHash
 	tk    Tok
 	mail  Mailer
-	rl    RateLim
+	rl    RateLimiter
 }
 
 type loginFailMeta struct {

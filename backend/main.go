@@ -35,6 +35,17 @@ func main() {
 		log.Fatal(err)
 	}
 
+	//seedを投入する。
+	if c.GoEnv == "dev" {
+		if err := db.SeedDev(
+			d,
+			c.SeedAdminEmail,
+			c.SeedAdminPassword,
+		); err != nil {
+			log.Fatal(err)
+		}
+	}
+
 	e := echo.New()
 
 	rdb := redis.NewClient(&redis.Options{
@@ -69,33 +80,35 @@ func main() {
 	ph := usecase.NewBcryptHasher()
 	tk := usecase.NewJWTMaker(c.JWTSecret)
 	mail := usecase.NewLogMailer(c.FEURL)
-	rl := repository.NewRateLimiter(
-		rdb,
-		repository.Rule{
+
+	rlStore := repository.NewRateLimitStore(rdb)
+	rl := usecase.NewRateLimitUC(
+		rlStore,
+		usecase.RateRule{
 			Limit:  1,
 			Window: 5 * time.Second,
 		},
-		repository.Rule{
+		usecase.RateRule{
 			Limit:  1,
 			Window: 5 * time.Second,
 		},
-		repository.Rule{
+		usecase.RateRule{
 			Limit:  1,
 			Window: 2 * time.Second,
 		},
-		repository.Rule{
+		usecase.RateRule{
 			Limit:  1,
 			Window: 2 * time.Second,
 		},
-		repository.Rule{
+		usecase.RateRule{
 			Limit:  1,
 			Window: 4 * time.Second,
 		},
-		repository.Rule{
+		usecase.RateRule{
 			Limit:  1,
 			Window: 2 * time.Second,
 		},
-		repository.Rule{
+		usecase.RateRule{
 			Limit:  1,
 			Window: 4 * time.Second,
 		},

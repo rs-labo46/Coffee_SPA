@@ -78,15 +78,15 @@ type Source struct {
 
 // Itemはitemsテーブル
 type Item struct {
-	ID          int64     `gorm:"column:id;primaryKey;autoIncrement"`
-	Title       string    `gorm:"column:title;type:varchar;not null"`
-	Summary     *string   `gorm:"column:summary;type:varchar"`
-	URL         *string   `gorm:"column:url;type:varchar"`
-	ImageURL    *string   `gorm:"column:image_url;type:varchar"`
-	Kind        string    `gorm:"column:kind;type:varchar;not null;index"`
-	SourceID    int64     `gorm:"column:source_id;not null;index"`
-	PublishedAt time.Time `gorm:"column:published_at;not null"`
-	CreatedAt   time.Time `gorm:"column:created_at;not null;autoCreateTime"`
+	ID          int64     `gorm:"column:id;primaryKey;autoIncrement" json:"id"`
+	Title       string    `gorm:"column:title;type:varchar;not null" json:"title"`
+	Summary     *string   `gorm:"column:summary;type:varchar" json:"summary"`
+	URL         *string   `gorm:"column:url;type:varchar" json:"url"`
+	ImageURL    *string   `gorm:"column:image_url;type:varchar" json:"image_url"`
+	Kind        string    `gorm:"column:kind;type:varchar;not null;index" json:"kind"`
+	SourceID    int64     `gorm:"column:source_id;not null;index" json:"source_id"`
+	PublishedAt time.Time `gorm:"column:published_at;not null" json:"published_at"`
+	CreatedAt   time.Time `gorm:"column:created_at;not null;autoCreateTime" json:"created_at"`
 }
 
 // AuditLogはaudit_logsテーブル

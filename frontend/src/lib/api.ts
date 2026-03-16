@@ -14,7 +14,6 @@ type ApiErrBody = {
   message?: string;
 };
 
-//フロント側で扱うAPIエラー
 export class ApiError extends Error {
   status: number;
   code: string;
@@ -27,37 +26,30 @@ export class ApiError extends Error {
   }
 }
 
-//localStorageにaccess tokenを保存するキー
 const tokenKey = "access_token";
 
-//APIのベースURLを返す
 function getBaseUrl(): string {
   return import.meta.env.VITE_API_BASE_URL || "http://localhost:8080";
 }
 
-//ベースURLとパスをつなぐ
 function joinUrl(base: string, path: string): string {
   const left = base.endsWith("/") ? base.slice(0, -1) : base;
   const right = path.startsWith("/") ? path : `/${path}`;
   return `${left}${right}`;
 }
 
-//localStorageからaccess tokenを読む
 export function getToken(): string {
   return localStorage.getItem(tokenKey) || "";
 }
 
-//localStorageにaccess tokenを保存
 export function setToken(token: string): void {
   localStorage.setItem(tokenKey, token);
 }
 
-//localStorageからaccess tokenを削除
 export function clearToken(): void {
   localStorage.removeItem(tokenKey);
 }
 
-//Cookieから指定名の値を取り出す
 export function getCookie(name: string): string {
   const items = document.cookie.split(";");
 
@@ -72,29 +64,23 @@ export function getCookie(name: string): string {
   return "";
 }
 
-//fetchに渡すヘッダー
 function buildHeaders(opt?: ApiOption): Headers {
   const headers = new Headers();
 
-  //認証が必要ならAuthorizationを付ける
   if (opt?.auth) {
     const token = getToken();
-
     if (token) {
       headers.set("Authorization", `Bearer ${token}`);
     }
   }
 
-  //CSRFが必要ならcookie から読み出してheaderに付ける
   if (opt?.csrf) {
     const csrf = getCookie("csrf_token");
-
     if (csrf) {
       headers.set("X-CSRF-Token", csrf);
     }
   }
 
-  //bodyがある時だけJSONを宣言
   if (opt?.body !== undefined) {
     headers.set("Content-Type", "application/json");
   }
@@ -102,7 +88,6 @@ function buildHeaders(opt?: ApiOption): Headers {
   return headers;
 }
 
-//レスポンスがJSONの時だけ安全に読む
 async function readJsonSafe<T>(res: Response): Promise<T | null> {
   const contentType = res.headers.get("Content-Type") || "";
 
@@ -113,7 +98,6 @@ async function readJsonSafe<T>(res: Response): Promise<T | null> {
   return (await res.json()) as T;
 }
 
-//エラーレスポンスをApiErrorに変換
 async function throwApiError(res: Response): Promise<never> {
   const body = await readJsonSafe<ApiErrBody>(res);
 
@@ -133,7 +117,6 @@ export async function api<T>(
     credentials: "include",
   };
 
-  //bodyがある時だけJSON文字列に
   if (opt?.body !== undefined) {
     init.body = JSON.stringify(opt.body);
   }
