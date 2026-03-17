@@ -139,3 +139,13 @@ export async function api<T>(
 
   return data;
 }
+export function toErrorMessage(err: unknown, fallback: string): string {
+  if (err instanceof Error) {
+    const msg = err.message.trim();
+    if (msg !== "") {
+      return msg;
+    }
+  }
+
+  return fallback;
+}

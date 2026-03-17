@@ -13,9 +13,14 @@ import (
 )
 
 type mockItemUC struct {
+	getFn    func(id int64) (entity.Item, error)
 	topFn    func(limit int) (usecase.TopItems, error)
 	searchFn func(q usecase.ItemQ) ([]entity.Item, error)
 	addFn    func(actor usecase.Actor, in usecase.AddItemIn) (entity.Item, error)
+}
+
+func (m *mockItemUC) Get(id int64) (entity.Item, error) {
+	return m.getFn(id)
 }
 
 func (m *mockItemUC) Add(actor usecase.Actor, in usecase.AddItemIn) (entity.Item, error) {
@@ -41,6 +46,9 @@ func TestItemCtlTop_OK(t *testing.T) {
 	c := e.NewContext(req, rec)
 
 	ctl := NewItemCtl(&mockItemUC{
+		getFn: func(id int64) (entity.Item, error) {
+			return entity.Item{}, nil
+		},
 		topFn: func(limit int) (usecase.TopItems, error) {
 			if limit != 0 {
 				t.Fatalf("limit = %d, want 0", limit)
@@ -73,5 +81,45 @@ func TestItemCtlTop_OK(t *testing.T) {
 	}
 	if body.News == nil || body.Recipe == nil || body.Deal == nil || body.Shop == nil {
 		t.Fatalf("expected all top item groups to exist")
+	}
+}
+func TestItemCtlGet_OK(t *testing.T) {
+	t.Parallel()
+
+	e := echo.New()
+	req := httptest.NewRequest(http.MethodGet, "/items/1", nil)
+	rec := httptest.NewRecorder()
+	c := e.NewContext(req, rec)
+	c.SetPath("/items/:id")
+	c.SetParamNames("id")
+	c.SetParamValues("1")
+
+	ctl := NewItemCtl(&mockItemUC{
+		getFn: func(id int64) (entity.Item, error) {
+			if id != 1 {
+				t.Fatalf("id = %d, want 1", id)
+			}
+			return entity.Item{
+				ID:    1,
+				Title: "test item",
+				Kind:  "news",
+			}, nil
+		},
+		topFn: func(limit int) (usecase.TopItems, error) {
+			return usecase.TopItems{}, nil
+		},
+		searchFn: func(q usecase.ItemQ) ([]entity.Item, error) {
+			return nil, nil
+		},
+		addFn: func(actor usecase.Actor, in usecase.AddItemIn) (entity.Item, error) {
+			return entity.Item{}, nil
+		},
+	})
+
+	if err := ctl.Get(c); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, want 200", rec.Code)
 	}
 }

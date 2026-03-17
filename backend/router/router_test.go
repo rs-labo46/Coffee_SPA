@@ -63,6 +63,13 @@ type mockItemUCForRouter struct{}
 func (m *mockItemUCForRouter) Add(actor usecase.Actor, in usecase.AddItemIn) (entity.Item, error) {
 	return entity.Item{}, nil
 }
+func (m *mockItemUCForRouter) Get(id int64) (entity.Item, error) {
+	return entity.Item{
+		ID:    id,
+		Title: "test item",
+		Kind:  "news",
+	}, nil
+}
 func (m *mockItemUCForRouter) Search(q usecase.ItemQ) ([]entity.Item, error) {
 	return []entity.Item{}, nil
 }
@@ -184,12 +191,12 @@ func newTestEcho() *echo.Echo {
 
 //public endpoint である GET /items/top が存在ことを確認。
 
-func TestRouter_PublicItemsTop_Exists(t *testing.T) {
+func TestRouter_PublicItemGet_Exists(t *testing.T) {
 	t.Parallel()
 
 	e := newTestEcho()
 
-	req := httptest.NewRequest(http.MethodGet, "/items/top?limit=0", nil)
+	req := httptest.NewRequest(http.MethodGet, "/items/1", nil)
 	rec := httptest.NewRecorder()
 
 	e.ServeHTTP(rec, req)

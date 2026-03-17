@@ -43,7 +43,6 @@ func NewItemUC(
 }
 
 func (u *ItemUC) Add(actor Actor, itemInput AddItemIn) (entity.Item, error) {
-	//認可はmiddlewareで実施。
 	if err := u.val.NewItem(itemInput); err != nil {
 		return entity.Item{}, ErrInvalidRequest
 	}
@@ -86,6 +85,19 @@ func (u *ItemUC) Add(actor Actor, itemInput AddItemIn) (entity.Item, error) {
 		UA:       actor.UA,
 		MetaJSON: datatypes.JSON(b),
 	})
+	if err != nil {
+		return entity.Item{}, mapRepoErr(err)
+	}
+
+	return item, nil
+}
+
+func (u *ItemUC) Get(id int64) (entity.Item, error) {
+	if id <= 0 {
+		return entity.Item{}, ErrInvalidRequest
+	}
+
+	item, err := u.item.GetByID(id)
 	if err != nil {
 		return entity.Item{}, mapRepoErr(err)
 	}

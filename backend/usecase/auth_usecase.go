@@ -130,6 +130,7 @@ type AuthUsecase interface {
 
 type ItemUsecase interface {
 	Add(actor Actor, in AddItemIn) (entity.Item, error)
+	Get(id int64) (entity.Item, error)
 	Search(q ItemQ) ([]entity.Item, error)
 	Top(limit int) (TopItems, error)
 }

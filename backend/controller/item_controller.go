@@ -2,6 +2,7 @@ package controller
 
 import (
 	"net/http"
+	"strconv"
 
 	"coffee-spa/entity"
 	"coffee-spa/usecase"
@@ -48,7 +49,26 @@ type TopItemsRes struct {
 	Shop   []entity.Item `json:"shop"`
 }
 
-// GET /items/top を処理。
+// GET /items/:idを処理。
+func (ctl ItemCtl) Get(c echo.Context) error {
+	id, err := strconv.ParseInt(c.Param("id"), 10, 64)
+	if err != nil {
+		return c.JSON(http.StatusBadRequest, ErrRes{
+			Error: "invalid_request",
+		})
+	}
+
+	item, err := ctl.uc.Get(id)
+	if err != nil {
+		return writeErr(c, err)
+	}
+
+	return c.JSON(http.StatusOK, ItemRes{
+		Item: item,
+	})
+}
+
+// GET /items/topを処理。
 func (ctl ItemCtl) Top(c echo.Context) error {
 	limit := qInt(c, "limit", 3)
 
@@ -83,7 +103,7 @@ func (ctl ItemCtl) List(c echo.Context) error {
 }
 
 // POST /items を処理。
-// 認可は middleware 側で行う。
+// 認可はmiddleware側で行う。
 func (ctl ItemCtl) Create(c echo.Context) error {
 	var req AddItemReq
 
