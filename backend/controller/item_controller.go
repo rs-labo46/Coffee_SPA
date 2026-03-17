@@ -2,7 +2,6 @@ package controller
 
 import (
 	"net/http"
-	"strconv"
 
 	"coffee-spa/entity"
 	"coffee-spa/usecase"
@@ -49,28 +48,9 @@ type TopItemsRes struct {
 	Shop   []entity.Item `json:"shop"`
 }
 
-// GET /items/:idを処理。
-func (ctl ItemCtl) Get(c echo.Context) error {
-	id, err := strconv.ParseInt(c.Param("id"), 10, 64)
-	if err != nil {
-		return c.JSON(http.StatusBadRequest, ErrRes{
-			Error: "invalid_request",
-		})
-	}
-
-	item, err := ctl.uc.Get(id)
-	if err != nil {
-		return writeErr(c, err)
-	}
-
-	return c.JSON(http.StatusOK, ItemRes{
-		Item: item,
-	})
-}
-
 // GET /items/topを処理。
 func (ctl ItemCtl) Top(c echo.Context) error {
-	limit := qInt(c, "limit", 3)
+	limit, err := qInt(c, "limit", 3)
 
 	topItems, err := ctl.uc.Top(limit)
 	if err != nil {
@@ -87,11 +67,20 @@ func (ctl ItemCtl) Top(c echo.Context) error {
 
 // GET /items を処理。
 func (ctl ItemCtl) List(c echo.Context) error {
+	limit, err := qInt(c, "limit", 20)
+	if err != nil {
+		return writeErr(c, err)
+	}
+	offset, err := qInt(c, "offset", 0)
+	if err != nil {
+		return writeErr(c, err)
+	}
+
 	items, err := ctl.uc.Search(usecase.ItemQ{
 		Q:      c.QueryParam("q"),
 		Kind:   c.QueryParam("kind"),
-		Limit:  qInt(c, "limit", 20),
-		Offset: qInt(c, "offset", 0),
+		Limit:  limit,
+		Offset: offset,
 	})
 	if err != nil {
 		return writeErr(c, err)

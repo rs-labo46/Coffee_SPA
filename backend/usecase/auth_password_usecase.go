@@ -11,8 +11,8 @@ import (
 // reset token を発行してメール送信する
 func (u *AuthUC) ForgotPw(ForgotPasswordInput ForgotPwIn) error {
 	email := normEmail(ForgotPasswordInput.Email)
-	if err := checkEmailOnly(email); err != nil {
-		return err
+	if err := u.val.EmailOnly(email); err != nil {
+		return ErrInvalidRequest
 	}
 
 	emailHash := sha256Hex(email)

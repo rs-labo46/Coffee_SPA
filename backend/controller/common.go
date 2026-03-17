@@ -51,20 +51,27 @@ func userAgent(c echo.Context) string {
 	return c.Request().UserAgent()
 }
 
+func bindJSON(c echo.Context, dst interface{}) error {
+	if err := c.Bind(dst); err != nil {
+		return c.JSON(http.StatusBadRequest, ErrRes{Error: "invalid_request"})
+	}
+	return nil
+}
+
 // query parameterをintに変換。
-// 値が無い、または不正ならdefを返す。
-func qInt(c echo.Context, key string, def int) int {
+// 値が無いときはdefを返し、不正値ならErrInvalidRequestを返す。
+func qInt(c echo.Context, key string, def int) (int, error) {
 	s := strings.TrimSpace(c.QueryParam(key))
 	if s == "" {
-		return def
+		return def, nil
 	}
 
 	n, err := strconv.Atoi(s)
 	if err != nil {
-		return def
+		return 0, usecase.ErrInvalidRequest
 	}
 
-	return n
+	return n, nil
 }
 
 // cookieにSecureを付けるかを環境変数から判定。

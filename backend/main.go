@@ -35,7 +35,6 @@ func main() {
 		log.Fatal(err)
 	}
 
-	//seedを投入する。
 	if c.GoEnv == "dev" {
 		if err := db.SeedDev(
 			d,
@@ -84,34 +83,13 @@ func main() {
 	rlStore := repository.NewRateLimitStore(rdb)
 	rl := usecase.NewRateLimitUC(
 		rlStore,
-		usecase.RateRule{
-			Limit:  1,
-			Window: 5 * time.Second,
-		},
-		usecase.RateRule{
-			Limit:  1,
-			Window: 5 * time.Second,
-		},
-		usecase.RateRule{
-			Limit:  1,
-			Window: 2 * time.Second,
-		},
-		usecase.RateRule{
-			Limit:  1,
-			Window: 2 * time.Second,
-		},
-		usecase.RateRule{
-			Limit:  1,
-			Window: 4 * time.Second,
-		},
-		usecase.RateRule{
-			Limit:  1,
-			Window: 2 * time.Second,
-		},
-		usecase.RateRule{
-			Limit:  1,
-			Window: 4 * time.Second,
-		},
+		usecase.RateRule{Limit: 1, Window: 5 * time.Second},
+		usecase.RateRule{Limit: 1, Window: 5 * time.Second},
+		usecase.RateRule{Limit: 1, Window: 2 * time.Second},
+		usecase.RateRule{Limit: 1, Window: 2 * time.Second},
+		usecase.RateRule{Limit: 1, Window: 4 * time.Second},
+		usecase.RateRule{Limit: 1, Window: 2 * time.Second},
+		usecase.RateRule{Limit: 1, Window: 4 * time.Second},
 	)
 
 	healthUC := usecase.NewHealthUC(d.S)
@@ -129,7 +107,6 @@ func main() {
 	)
 	itemUC := usecase.NewItemUC(
 		itemRepo,
-		sourceRepo,
 		auditRepo,
 		itemVal,
 	)

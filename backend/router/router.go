@@ -37,7 +37,6 @@ func New(
 	pub.POST("/auth/password/forgot", authCtl.ForgotPw)
 	pub.POST("/auth/password/reset", authCtl.ResetPw)
 	pub.GET("/items/top", itemCtl.Top)
-	pub.GET("/items/:id", itemCtl.Get)
 	pub.GET("/items", itemCtl.List)
 	pub.GET("/sources", srcCtl.List)
 
@@ -45,7 +44,7 @@ func New(
 	//refreshはcookie+csrf+rate limitが必要
 	csrf := e.Group("")
 	csrf.Use(middleware.CSRF())
-	csrf.Use(middleware.RefreshRateLimit(rtRepo, rl))
+	csrf.Use(middleware.RequireRefreshCookie())
 	csrf.POST("/auth/refresh", authCtl.Refresh)
 
 	//private

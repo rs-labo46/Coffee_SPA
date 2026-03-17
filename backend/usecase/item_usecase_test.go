@@ -101,7 +101,7 @@ func TestItemUCTop_ZeroCap_ReturnsEmptyGroups(t *testing.T) {
 				}, nil
 			},
 		},
-		source: &mockSourceRepo{},
+
 		audit: &mockAuditRepo{
 			createFn: func(a entity.AuditLog) error { return nil },
 		},
@@ -140,7 +140,7 @@ func TestItemUCTop_RepoError_Mapped(t *testing.T) {
 				return repository.TopItems{}, repository.ErrInternal
 			},
 		},
-		source: &mockSourceRepo{},
+
 		audit: &mockAuditRepo{
 			createFn: func(a entity.AuditLog) error { return nil },
 		},
@@ -180,12 +180,7 @@ func TestItemUCAdd_OK(t *testing.T) {
 				return nil, nil
 			},
 		},
-		source: &mockSourceRepo{
-			getByIDFn: func(id int64) (entity.Source, error) {
-				//SourceID が存在している前提を返す。
-				return entity.Source{ID: id, Name: "test"}, nil
-			},
-		},
+
 		audit: &mockAuditRepo{
 			createFn: func(a entity.AuditLog) error {
 				audited = true

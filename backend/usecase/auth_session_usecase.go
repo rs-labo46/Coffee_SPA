@@ -1,18 +1,19 @@
 package usecase
 
 import (
-	"coffee-spa/entity"
 	"strings"
 	"time"
+
+	"coffee-spa/entity"
 )
 
 // Login は access / refresh / csrf を発行する
-func (u *AuthUC) Login(LoginInput LoginIn) (AuthOut, error) {
-	if err := u.val.Login(LoginInput.Email, LoginInput.Pw); err != nil {
+func (u *AuthUC) Login(input LoginIn) (AuthOut, error) {
+	if err := u.val.Login(input.Email, input.Pw); err != nil {
 		return AuthOut{}, ErrInvalidRequest
 	}
 
-	email := normEmail(LoginInput.Email)
+	email := normEmail(input.Email)
 	emailHash := sha256Hex(email)
 
 	ok, retry, err := u.rl.AllowLogin(emailHash)
@@ -25,36 +26,15 @@ func (u *AuthUC) Login(LoginInput LoginIn) (AuthOut, error) {
 
 	user, err := u.user.GetByEmail(email)
 	if err != nil {
-		_ = u.writeAudit(
-			"auth.login.fail",
-			nil,
-			LoginInput.IP,
-			LoginInput.UA,
-			loginFailMeta{Reason: "unauthorized"},
-		)
-		return AuthOut{}, ErrUnauthorized
+		return AuthOut{}, u.writeLoginUnauthorized(nil, input)
 	}
 
 	if !user.EmailVerified {
-		_ = u.writeAudit(
-			"auth.login.fail",
-			int64Pointer(user.ID),
-			LoginInput.IP,
-			LoginInput.UA,
-			loginFailMeta{Reason: "unauthorized"},
-		)
-		return AuthOut{}, ErrUnauthorized
+		return AuthOut{}, u.writeLoginUnauthorized(int64Pointer(user.ID), input)
 	}
 
-	if err := u.ph.Compare(user.PassHash, LoginInput.Pw); err != nil {
-		_ = u.writeAudit(
-			"auth.login.fail",
-			int64Pointer(user.ID),
-			LoginInput.IP,
-			LoginInput.UA,
-			loginFailMeta{Reason: "unauthorized"},
-		)
-		return AuthOut{}, ErrUnauthorized
+	if err := u.ph.Compare(user.PassHash, input.Pw); err != nil {
+		return AuthOut{}, u.writeLoginUnauthorized(int64Pointer(user.ID), input)
 	}
 
 	familyID, err := u.tk.NewFamilyID()
@@ -90,8 +70,8 @@ func (u *AuthUC) Login(LoginInput LoginIn) (AuthOut, error) {
 	if err := u.writeAudit(
 		"auth.login.success",
 		int64Pointer(user.ID),
-		LoginInput.IP,
-		LoginInput.UA,
+		input.IP,
+		input.UA,
 		refreshOKMeta{
 			UserID:   user.ID,
 			FamilyID: familyID,
@@ -109,40 +89,33 @@ func (u *AuthUC) Login(LoginInput LoginIn) (AuthOut, error) {
 }
 
 // refresh token を回転させる
-func (u *AuthUC) Refresh(RefreshInput RefreshIn) (AuthOut, error) {
-	if strings.TrimSpace(RefreshInput.RefreshToken) == "" {
-		_ = u.writeAudit("auth.refresh.fail", nil, RefreshInput.IP, RefreshInput.UA, nil)
+func (u *AuthUC) Refresh(input RefreshIn) (AuthOut, error) {
+	if strings.TrimSpace(input.RefreshToken) == "" {
+		_ = u.writeAudit("auth.refresh.fail", nil, input.IP, input.UA, nil)
 		return AuthOut{}, ErrUnauthorized
 	}
 
-	rt, err := u.rt.GetByTokenHash(sha256Hex(RefreshInput.RefreshToken))
+	rt, err := u.rt.GetByTokenHash(sha256Hex(input.RefreshToken))
 	if err != nil {
-		_ = u.writeAudit("auth.refresh.fail", nil, RefreshInput.IP, RefreshInput.UA, nil)
+		_ = u.writeAudit("auth.refresh.fail", nil, input.IP, input.UA, nil)
 		return AuthOut{}, ErrUnauthorized
+	}
+
+	ok, retry, err := u.rl.AllowRefresh(rt.UserID)
+	if err != nil {
+		return AuthOut{}, ErrInternal
+	}
+	if !ok {
+		return AuthOut{}, ErrRateLimited{RetryAfterSec: retry}
 	}
 
 	if time.Now().After(rt.ExpiresAt) || rt.RevokedAt != nil {
-		_ = u.writeAudit("auth.refresh.fail", int64Pointer(rt.UserID), RefreshInput.IP, RefreshInput.UA, nil)
+		_ = u.writeAudit("auth.refresh.fail", int64Pointer(rt.UserID), input.IP, input.UA, nil)
 		return AuthOut{}, ErrUnauthorized
 	}
 
 	if rt.UsedAt != nil {
-		_ = u.rt.RevokeByFamilyID(rt.FamilyID)
-		_, _ = u.user.BumpTokenVer(rt.UserID)
-
-		_ = u.writeAudit(
-			"auth.refresh.reuse_detected",
-			int64Pointer(rt.UserID),
-			RefreshInput.IP,
-			RefreshInput.UA,
-			refreshReuseMeta{
-				UserID:   rt.UserID,
-				FamilyID: rt.FamilyID,
-				RtID:     rt.ID,
-			},
-		)
-
-		return AuthOut{}, ErrUnauthorized
+		return AuthOut{}, u.handleRefreshReuse(rt, input)
 	}
 
 	user, err := u.user.GetByID(rt.UserID)
@@ -166,22 +139,7 @@ func (u *AuthUC) Refresh(RefreshInput RefreshIn) (AuthOut, error) {
 	}
 
 	if err := u.rt.MarkUsed(rt.ID); err != nil {
-		_ = u.rt.RevokeByFamilyID(rt.FamilyID)
-		_, _ = u.user.BumpTokenVer(rt.UserID)
-
-		_ = u.writeAudit(
-			"auth.refresh.reuse_detected",
-			int64Pointer(rt.UserID),
-			RefreshInput.IP,
-			RefreshInput.UA,
-			refreshReuseMeta{
-				UserID:   rt.UserID,
-				FamilyID: rt.FamilyID,
-				RtID:     rt.ID,
-			},
-		)
-
-		return AuthOut{}, ErrUnauthorized
+		return AuthOut{}, u.handleRefreshReuse(rt, input)
 	}
 
 	if err := u.rt.Revoke(rt.ID); err != nil {
@@ -205,8 +163,8 @@ func (u *AuthUC) Refresh(RefreshInput RefreshIn) (AuthOut, error) {
 	if err := u.writeAudit(
 		"auth.refresh.success",
 		int64Pointer(user.ID),
-		RefreshInput.IP,
-		RefreshInput.UA,
+		input.IP,
+		input.UA,
 		refreshOKMeta{
 			UserID:   user.ID,
 			FamilyID: rt.FamilyID,
@@ -250,4 +208,34 @@ func (u *AuthUC) Logout(in LogoutIn) error {
 	}
 
 	return nil
+}
+
+func (u *AuthUC) writeLoginUnauthorized(userID *int64, input LoginIn) error {
+	_ = u.writeAudit(
+		"auth.login.fail",
+		userID,
+		input.IP,
+		input.UA,
+		loginFailMeta{Reason: "unauthorized"},
+	)
+	return ErrUnauthorized
+}
+
+func (u *AuthUC) handleRefreshReuse(rt entity.RefreshToken, input RefreshIn) error {
+	_ = u.rt.RevokeByFamilyID(rt.FamilyID)
+	_, _ = u.user.BumpTokenVer(rt.UserID)
+
+	_ = u.writeAudit(
+		"auth.refresh.reuse_detected",
+		int64Pointer(rt.UserID),
+		input.IP,
+		input.UA,
+		refreshReuseMeta{
+			UserID:   rt.UserID,
+			FamilyID: rt.FamilyID,
+			RtID:     rt.ID,
+		},
+	)
+
+	return ErrUnauthorized
 }

@@ -17,10 +17,9 @@ type ItemVal interface {
 }
 
 type ItemUC struct {
-	item   repository.ItemRepository
-	source repository.SourceRepository
-	audit  repository.AuditRepository
-	val    ItemVal
+	item  repository.ItemRepository
+	audit repository.AuditRepository
+	val   ItemVal
 }
 
 type itemCreateMeta struct {
@@ -30,40 +29,33 @@ type itemCreateMeta struct {
 
 func NewItemUC(
 	item repository.ItemRepository,
-	source repository.SourceRepository,
 	audit repository.AuditRepository,
 	val ItemVal,
 ) ItemUsecase {
 	return &ItemUC{
-		item:   item,
-		source: source,
-		audit:  audit,
-		val:    val,
+		item:  item,
+		audit: audit,
+		val:   val,
 	}
 }
 
-func (u *ItemUC) Add(actor Actor, itemInput AddItemIn) (entity.Item, error) {
-	if err := u.val.NewItem(itemInput); err != nil {
+func (u *ItemUC) Add(actor Actor, input AddItemIn) (entity.Item, error) {
+	if err := u.val.NewItem(input); err != nil {
 		return entity.Item{}, ErrInvalidRequest
 	}
 
-	publishedAt, err := time.Parse(time.RFC3339, itemInput.PublishedAt)
+	publishedAt, err := time.Parse(time.RFC3339, input.PublishedAt)
 	if err != nil {
 		return entity.Item{}, ErrInvalidRequest
-	}
-
-	_, err = u.source.GetByID(itemInput.SourceID)
-	if err != nil {
-		return entity.Item{}, mapRepoErr(err)
 	}
 
 	item, err := u.item.Create(entity.Item{
-		Title:       itemInput.Title,
-		Summary:     itemInput.Summary,
-		URL:         itemInput.URL,
-		ImageURL:    itemInput.ImageURL,
-		Kind:        itemInput.Kind,
-		SourceID:    itemInput.SourceID,
+		Title:       input.Title,
+		Summary:     input.Summary,
+		URL:         input.URL,
+		ImageURL:    input.ImageURL,
+		Kind:        input.Kind,
+		SourceID:    input.SourceID,
 		PublishedAt: publishedAt,
 	})
 	if err != nil {
@@ -92,30 +84,12 @@ func (u *ItemUC) Add(actor Actor, itemInput AddItemIn) (entity.Item, error) {
 	return item, nil
 }
 
-func (u *ItemUC) Get(id int64) (entity.Item, error) {
-	if id <= 0 {
-		return entity.Item{}, ErrInvalidRequest
-	}
-
-	item, err := u.item.GetByID(id)
-	if err != nil {
-		return entity.Item{}, mapRepoErr(err)
-	}
-
-	return item, nil
-}
-
 func (u *ItemUC) Search(q ItemQ) ([]entity.Item, error) {
 	if err := u.val.ListItem(q); err != nil {
 		return nil, ErrInvalidRequest
 	}
 
-	items, err := u.item.List(repository.ItemQ{
-		Q:      q.Q,
-		Kind:   q.Kind,
-		Limit:  q.Limit,
-		Offset: q.Offset,
-	})
+	items, err := u.item.List(q)
 	if err != nil {
 		return nil, mapRepoErr(err)
 	}
@@ -133,12 +107,7 @@ func (u *ItemUC) Top(limit int) (TopItems, error) {
 		return TopItems{}, mapRepoErr(err)
 	}
 
-	return TopItems{
-		News:   topItems.News,
-		Recipe: topItems.Recipe,
-		Deal:   topItems.Deal,
-		Shop:   topItems.Shop,
-	}, nil
+	return topItems, nil
 }
 
 func mapRepoErr(err error) error {

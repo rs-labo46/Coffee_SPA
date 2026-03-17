@@ -93,32 +93,6 @@ func TestItemCtlGet_OK(t *testing.T) {
 	c.SetPath("/items/:id")
 	c.SetParamNames("id")
 	c.SetParamValues("1")
-
-	ctl := NewItemCtl(&mockItemUC{
-		getFn: func(id int64) (entity.Item, error) {
-			if id != 1 {
-				t.Fatalf("id = %d, want 1", id)
-			}
-			return entity.Item{
-				ID:    1,
-				Title: "test item",
-				Kind:  "news",
-			}, nil
-		},
-		topFn: func(limit int) (usecase.TopItems, error) {
-			return usecase.TopItems{}, nil
-		},
-		searchFn: func(q usecase.ItemQ) ([]entity.Item, error) {
-			return nil, nil
-		},
-		addFn: func(actor usecase.Actor, in usecase.AddItemIn) (entity.Item, error) {
-			return entity.Item{}, nil
-		},
-	})
-
-	if err := ctl.Get(c); err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
 	if rec.Code != http.StatusOK {
 		t.Fatalf("status = %d, want 200", rec.Code)
 	}

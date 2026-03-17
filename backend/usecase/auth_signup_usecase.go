@@ -85,6 +85,7 @@ func (u *AuthUC) Signup(SignupInput SignupIn) (entity.User, error) {
 type AuthVal interface {
 	Signup(email string, pw string) error
 	Login(email string, pw string) error
+	EmailOnly(email string) error
 	NewPw(pw string) error
 }
 
@@ -240,8 +241,9 @@ func (u *AuthUC) VerifyEmail(in VerifyEmailIn) error {
 // 未認証ユーザー向けにverify tokenを再送する
 func (u *AuthUC) ResendVerify(in ResendVerifyIn) error {
 	email := normEmail(in.Email)
-	if err := checkEmailOnly(email); err != nil {
-		return err
+	if err := u.val.EmailOnly(email); err != nil {
+		return ErrInvalidRequest
+
 	}
 
 	emailHash := sha256Hex(email)
@@ -317,18 +319,5 @@ func (u *AuthUC) ResendVerify(in ResendVerifyIn) error {
 		return err
 	}
 
-	return nil
-}
-
-func checkEmailOnly(email string) error {
-	if email == "" {
-		return ErrInvalidRequest
-	}
-	if len(email) > 254 {
-		return ErrInvalidRequest
-	}
-	if !strings.Contains(email, "@") {
-		return ErrInvalidRequest
-	}
 	return nil
 }

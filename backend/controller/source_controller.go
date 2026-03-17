@@ -52,10 +52,8 @@ func (ctl SrcCtl) List(c echo.Context) error {
 func (ctl SrcCtl) Create(c echo.Context) error {
 	var req AddSourceReq
 
-	if err := c.Bind(&req); err != nil {
-		return c.JSON(http.StatusBadRequest, ErrRes{
-			Error: "invalid_request",
-		})
+	if err := bindJSON(c, &req); err != nil {
+		return err
 	}
 
 	src, err := ctl.uc.Add(actorFromCtx(c), usecase.AddSourceIn{

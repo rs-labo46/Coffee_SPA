@@ -4,6 +4,7 @@ import (
 	"errors"
 
 	"coffee-spa/entity"
+	"coffee-spa/repository"
 )
 
 var ErrInvalidRequest = errors.New("invalid_request")
@@ -28,19 +29,9 @@ type Actor struct {
 	UA     string
 }
 
-type ItemQ struct {
-	Q      string
-	Kind   string
-	Limit  int
-	Offset int
-}
+type ItemQ = repository.ItemQ
 
-type TopItems struct {
-	News   []entity.Item
-	Recipe []entity.Item
-	Deal   []entity.Item
-	Shop   []entity.Item
-}
+type TopItems = repository.TopItems
 
 type SignupIn struct {
 	Email string
@@ -130,7 +121,6 @@ type AuthUsecase interface {
 
 type ItemUsecase interface {
 	Add(actor Actor, in AddItemIn) (entity.Item, error)
-	Get(id int64) (entity.Item, error)
 	Search(q ItemQ) ([]entity.Item, error)
 	Top(limit int) (TopItems, error)
 }

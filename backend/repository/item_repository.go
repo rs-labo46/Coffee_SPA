@@ -109,48 +109,26 @@ func (r *itemRepository) Top(cap int) (TopItems, error) {
 		return topItems, nil
 	}
 
-	err := r.db.
-		Where("kind = ?", "news").
-		Order("published_at DESC").
-		Order("created_at DESC").
-		Limit(cap).
-		Find(&topItems.News).
-		Error
-	if err != nil {
-		return TopItems{}, ErrInternal
+	groups := []struct {
+		kind string
+		dst  *[]entity.Item
+	}{
+		{kind: "news", dst: &topItems.News},
+		{kind: "recipe", dst: &topItems.Recipe},
+		{kind: "deal", dst: &topItems.Deal},
+		{kind: "shop", dst: &topItems.Shop},
 	}
 
-	err = r.db.
-		Where("kind = ?", "recipe").
-		Order("published_at DESC").
-		Order("created_at DESC").
-		Limit(cap).
-		Find(&topItems.Recipe).
-		Error
-	if err != nil {
-		return TopItems{}, ErrInternal
-	}
-
-	err = r.db.
-		Where("kind = ?", "deal").
-		Order("published_at DESC").
-		Order("created_at DESC").
-		Limit(cap).
-		Find(&topItems.Deal).
-		Error
-	if err != nil {
-		return TopItems{}, ErrInternal
-	}
-
-	err = r.db.
-		Where("kind = ?", "shop").
-		Order("published_at DESC").
-		Order("created_at DESC").
-		Limit(cap).
-		Find(&topItems.Shop).
-		Error
-	if err != nil {
-		return TopItems{}, ErrInternal
+	for _, g := range groups {
+		if err := r.db.
+			Where("kind = ?", g.kind).
+			Order("published_at DESC").
+			Order("created_at DESC").
+			Limit(cap).
+			Find(g.dst).
+			Error; err != nil {
+			return TopItems{}, ErrInternal
+		}
 	}
 
 	return topItems, nil

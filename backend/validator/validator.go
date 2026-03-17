@@ -71,13 +71,16 @@ func NewSourceValidator(
 }
 
 func (v *AuthValidator) Signup(email string, pw string) error {
-	if err := v.email.Ok(strings.TrimSpace(email)); err != nil {
+	if err := v.EmailOnly(email); err != nil {
 		return err
 	}
 	if err := v.pw.Ok(pw); err != nil {
 		return err
 	}
 	return nil
+}
+func (v *AuthValidator) EmailOnly(email string) error {
+	return v.email.Ok(strings.TrimSpace(email))
 }
 
 func (v *AuthValidator) Login(email string, pw string) error {
