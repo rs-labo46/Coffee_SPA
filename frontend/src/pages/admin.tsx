@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { ApiError, api } from "../lib/api";
+import { japanDateTime } from "../lib/date";
 
 type ItemKind = "news" | "recipe" | "deal" | "shop";
 
@@ -503,7 +504,7 @@ export function AdminPage() {
                     id="item-published-at"
                     name="published_at"
                     type="datetime-local"
-                    value={itemForm.published_at}
+                    value={japanDateTime(itemForm.published_at)}
                     onChange={onChangeItemForm}
                     className="w-full rounded-2xl border border-[#d8c8bc] bg-[#fffdfb] px-4 py-3 text-sm outline-none transition focus:border-[#8b5e3c]"
                   />
@@ -613,7 +614,9 @@ export function AdminPage() {
                           <span className="text-stone-400">-</span>
                         )}
                       </td>
-                      <td className="px-3 py-3">{source.created_at}</td>
+                      <td className="px-3 py-3">
+                        {japanDateTime(source.created_at)}
+                      </td>
                     </tr>
                   ))}
                 </tbody>

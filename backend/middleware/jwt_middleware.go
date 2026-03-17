@@ -19,7 +19,6 @@ type accessClaims struct {
 }
 
 // JWTAuthはBearer JWTを検証し、contextにuser_id / role / tv を入れる。
-// ここでは署名と claims 形式だけを検証します。
 // token_versionのDB整合はTokenVersionで行う。
 func JWTAuth(secret string) echo.MiddlewareFunc {
 	key := []byte(secret)

@@ -181,16 +181,6 @@ export default function ItemDetailPage() {
               {item.summary ?? "概要は未登録です。"}
             </p>
 
-            <section className="rounded-[28px] bg-[#fcf6f0] px-6 py-6">
-              <h2 className="mb-4 text-xl font-extrabold text-[#4e342e]">
-                記事本文ダミー
-              </h2>
-
-              <div className="space-y-4 text-base font-medium leading-8 text-[#5f544d]">
-                <p>これは商品の詳細ページです。</p>
-              </div>
-            </section>
-
             {item.url ? (
               <div className="mt-8">
                 <a
