@@ -19,10 +19,12 @@ export function SignupPage() {
 
     try {
       const message = await signup(email, password);
+      setOk(true);
       setMsg(
         `${message} backendログにverifyリンクが出るので、そのリンクを開いてください。`,
       );
     } catch (err: unknown) {
+      setOk(false);
       if (err instanceof ApiError) {
         setMsg(err.message);
       } else {
@@ -97,10 +99,6 @@ export function SignupPage() {
             <h2 className="mb-3 text-3xl font-black text-[#4e342e]">
               アカウント登録
             </h2>
-
-            <p className="text-base font-semibold leading-8 text-[#766b63]">
-              登録後は確認メールの完了が必要です。そこで詰まらないよう、この画面で次の手順まで案内します。
-            </p>
           </div>
 
           {msg ? (

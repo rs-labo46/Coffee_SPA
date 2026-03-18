@@ -15,7 +15,7 @@ import { SignupPage } from "./pages/signup";
 import { VerifyEmailPage } from "./pages/verify-email";
 import { AdminPage } from "./pages/admin";
 import TopPage from "./pages/top";
-import ItemDetailPage from "./pages/ItemDetailPage";
+import { ItemsPage } from "./pages/items";
 
 type GuardProps = {
   children: ReactNode;
@@ -102,19 +102,14 @@ function HeaderAuthActions() {
             ].join(" ")
           }
         >
-          login
+          ログイン
         </NavLink>
 
         <NavLink
           to="/signup"
-          className={({ isActive }) =>
-            [
-              "inline-flex items-center rounded-full px-4 py-2 text-sm font-bold transition",
-              "bg-[#4e342e] text-white hover:opacity-90",
-            ].join(" ")
-          }
+          className="inline-flex items-center rounded-full bg-[#4e342e] px-4 py-2 text-sm font-bold text-white transition hover:opacity-90"
         >
-          signup
+          新規登録
         </NavLink>
 
         <NavLink
@@ -128,7 +123,7 @@ function HeaderAuthActions() {
             ].join(" ")
           }
         >
-          resend verify
+          確認メール再送
         </NavLink>
       </div>
     );
@@ -151,7 +146,7 @@ function HeaderAuthActions() {
         onClick={() => void onLogout()}
         className="inline-flex items-center rounded-full bg-[#4e342e] px-4 py-2 text-sm font-bold text-white transition hover:opacity-90"
       >
-        logout
+        ログアウト
       </button>
     </div>
   );
@@ -177,11 +172,8 @@ function AppHeader() {
                 </div>
 
                 <div className="min-w-0">
-                  <p className="text-xs font-black tracking-[0.28em] text-[#a1775b] uppercase">
-                    coffee spa
-                  </p>
                   <h1 className="truncate text-lg font-black text-[#4e342e] md:text-xl">
-                    Coffee Topics & Admin Console
+                    coffee spa
                   </h1>
                   <p className="hidden text-sm font-semibold text-[#8a7b71] md:block">
                     豆・レシピ・セール・店舗情報を一つに。
@@ -192,10 +184,10 @@ function AppHeader() {
 
             <div className="flex flex-col gap-3 xl:items-end">
               <nav className="flex flex-wrap items-center gap-2">
-                <HeaderNavItem to="/" label="top" />
-                {user ? <HeaderNavItem to="/me" label="me" /> : null}
+                <HeaderNavItem to="/" label="トップ" />
+                {user ? <HeaderNavItem to="/me" label="マイページ" /> : null}
                 {user?.role === "admin" ? (
-                  <HeaderNavItem to="/admin" label="admin" />
+                  <HeaderNavItem to="/admin" label="管理" />
                 ) : null}
               </nav>
 
@@ -234,7 +226,7 @@ function AppRoutes() {
       <main className="pb-10">
         <Routes>
           <Route path="/" element={<TopPage />} />
-          <Route path="/items/:id" element={<ItemDetailPage />} />
+          <Route path="/items" element={<ItemsPage />} />
           <Route path="/login" element={<LoginPage />} />
           <Route path="/signup" element={<SignupPage />} />
           <Route path="/verify-email" element={<VerifyEmailPage />} />

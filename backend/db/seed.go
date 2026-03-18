@@ -1,378 +1,377 @@
 package db
 
 import (
-	"errors"
 	"fmt"
-	"strings"
 	"time"
 
 	"coffee-spa/entity"
 
-	"golang.org/x/crypto/bcrypt"
 	"gorm.io/gorm"
 )
 
-func SeedDev(d DB, adminEmail string, adminPassword string) error {
-	//まずadminを作る。
-	if err := SeedDevAdmin(d, adminEmail, adminPassword); err != nil {
+func SeedDev(db *gorm.DB) error {
+	if err := seedSources(db); err != nil {
 		return err
 	}
 
-	//sourceを作る。
-	sourceMap, err := SeedDevSources(d)
-	if err != nil {
-		return err
-	}
-
-	//itemを作る。
-	if err := SeedDevItems(d, sourceMap); err != nil {
+	if err := seedItems(db); err != nil {
 		return err
 	}
 
 	return nil
 }
 
-// adminユーザーを作成する。
-// すでに同じemailがあれば何もしない。
-func SeedDevAdmin(d DB, email string, password string) error {
-	email = strings.TrimSpace(email)
-	password = strings.TrimSpace(password)
+func seedSources(db *gorm.DB) error {
+	var count int64
+	if err := db.Model(&entity.Source{}).Count(&count).Error; err != nil {
+		return err
+	}
 
-	//空なら何もしない。
-	if email == "" || password == "" {
+	if count > 0 {
 		return nil
 	}
 
-	//既存確認。
-	var exists entity.User
-	err := d.G.
-		Where("email = ?", email).
-		First(&exists).
-		Error
-
-	if err == nil {
-		//既に存在するから何もしない。
-		return nil
-	}
-
-	if !errors.Is(err, gorm.ErrRecordNotFound) {
-		return fmt.Errorf("find seed admin: %w", err)
-	}
-
-	//パスワードをハッシュ化する。
-	hash, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
-	if err != nil {
-		return fmt.Errorf("hash seed admin password: %w", err)
-	}
-
-	u := entity.User{
-		Email:         email,
-		PassHash:      string(hash),
-		Role:          string(entity.RoleAdmin),
-		TokenVer:      1,
-		EmailVerified: true,
-	}
-
-	if err := d.G.Create(&u).Error; err != nil {
-		return fmt.Errorf("create seed admin: %w", err)
-	}
-
-	return nil
-}
-
-func SeedDevSources(d DB) (map[string]entity.Source, error) {
-	defs := []entity.Source{
+	sources := []entity.Source{
 		{
 			Name:    "Coffee Daily",
-			SiteURL: strPtr("https://example.com/coffee-daily"),
+			SiteURL: strPtrIfNotEmpty("https://example.com/coffee-daily"),
 		},
 		{
-			Name:    "Roastery Journal",
-			SiteURL: strPtr("https://example.com/roastery-journal"),
+			Name:    "Roast Journal",
+			SiteURL: strPtrIfNotEmpty("https://example.com/roast-journal"),
 		},
 		{
-			Name:    "Bean Market",
-			SiteURL: strPtr("https://example.com/bean-market"),
+			Name:    "Home Brew Note",
+			SiteURL: strPtrIfNotEmpty("https://example.com/home-brew-note"),
 		},
 		{
 			Name:    "Cafe Guide",
-			SiteURL: strPtr("https://example.com/cafe-guide"),
+			SiteURL: strPtrIfNotEmpty("https://example.com/cafe-guide"),
 		},
 	}
 
-	//結果を詰める。
-	res := make(map[string]entity.Source, len(defs))
-
-	for _, def := range defs {
-		var src entity.Source
-
-		err := d.G.
-			Where("name = ?", def.Name).
-			First(&src).
-			Error
-
-		if err == nil {
-			//既存なら採用して次へ。
-			res[src.Name] = src
-			continue
-		}
-
-		if !errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil, fmt.Errorf("find seed source %s: %w", def.Name, err)
-		}
-
-		//なければ作成する。
-		if err := d.G.Create(&def).Error; err != nil {
-			return nil, fmt.Errorf("create seed source %s: %w", def.Name, err)
-		}
-
-		res[def.Name] = def
-	}
-
-	return res, nil
-}
-
-func SeedDevItems(d DB, sourceMap map[string]entity.Source) error {
-	jst := time.FixedZone("Asia/Tokyo", 9*60*60)
-
-	defs := []seedItemDef{
-		//news
-		{
-			SourceName: "Coffee Daily",
-			Title:      "今週のおすすめ豆 3選",
-			Summary:    "春向けの軽やかな味を楽しめる豆を3つ紹介します。",
-			URL:        "https://example.com/coffee-daily/recommend-beans",
-			ImageURL:   "https://images.unsplash.com/photo-1495474472287-4d71bcdd2085",
-			Kind:       string(entity.KindNews),
-			PublishedAt: time.Date(
-				2026, 3, 16, 9, 0, 0, 0, jst,
-			),
-		},
-		{
-			SourceName: "Coffee Daily",
-			Title:      "深煎り豆の選び方",
-			Summary:    "苦味だけでなく香りと後味で選ぶための簡単な基準を解説します。",
-			URL:        "https://example.com/coffee-daily/dark-roast-guide",
-			ImageURL:   "https://images.unsplash.com/photo-1461023058943-07fcbe16d735",
-			Kind:       string(entity.KindNews),
-			PublishedAt: time.Date(
-				2026, 3, 15, 7, 45, 0, 0, jst,
-			),
-		},
-		{
-			SourceName: "Coffee Daily",
-			Title:      "朝に合う浅煎りブレンド特集",
-			Summary:    "軽い口当たりで飲みやすい朝向けブレンドをまとめました。",
-			URL:        "https://example.com/coffee-daily/light-blend-morning",
-			ImageURL:   "https://images.unsplash.com/photo-1517701604599-bb29b565090c",
-			Kind:       string(entity.KindNews),
-			PublishedAt: time.Date(
-				2026, 3, 14, 8, 20, 0, 0, jst,
-			),
-		},
-		{
-			SourceName: "Coffee Daily",
-			Title:      "初心者向けコーヒー器具まとめ",
-			Summary:    "最初に揃えるなら何が必要かをわかりやすく整理しました。",
-			URL:        "https://example.com/coffee-daily/beginner-tools",
-			ImageURL:   "https://images.unsplash.com/photo-1447933601403-0c6688de566e",
-			Kind:       string(entity.KindNews),
-			PublishedAt: time.Date(
-				2026, 3, 13, 10, 10, 0, 0, jst,
-			),
-		},
-
-		//recipe
-		{
-			SourceName: "Roastery Journal",
-			Title:      "ハンドドリップ基本レシピ",
-			Summary:    "お湯の温度と蒸らし時間だけで味が安定する基本レシピです。",
-			URL:        "https://example.com/roastery-journal/basic-drip-recipe",
-			ImageURL:   "https://images.unsplash.com/photo-1447933601403-0c6688de566e",
-			Kind:       string(entity.KindRecipe),
-			PublishedAt: time.Date(
-				2026, 3, 12, 8, 30, 0, 0, jst,
-			),
-		},
-		{
-			SourceName: "Roastery Journal",
-			Title:      "ミルクブリューの作り方",
-			Summary:    "牛乳に一晩浸して甘みを引き出す簡単レシピです。",
-			URL:        "https://example.com/roastery-journal/milk-brew",
-			ImageURL:   "https://images.unsplash.com/photo-1511920170033-f8396924c348",
-			Kind:       string(entity.KindRecipe),
-			PublishedAt: time.Date(
-				2026, 3, 11, 18, 15, 0, 0, jst,
-			),
-		},
-		{
-			SourceName: "Roastery Journal",
-			Title:      "アイスコーヒー急冷レシピ",
-			Summary:    "氷で一気に冷やして香りを残す作り方です。",
-			URL:        "https://example.com/roastery-journal/iced-flash-brew",
-			ImageURL:   "https://images.unsplash.com/photo-1498804103079-a6351b050096",
-			Kind:       string(entity.KindRecipe),
-			PublishedAt: time.Date(
-				2026, 3, 10, 13, 0, 0, 0, jst,
-			),
-		},
-		{
-			SourceName: "Roastery Journal",
-			Title:      "フレンチプレス入門",
-			Summary:    "道具が少なくてもコクを出しやすい抽出方法を紹介します。",
-			URL:        "https://example.com/roastery-journal/french-press-guide",
-			ImageURL:   "https://images.unsplash.com/photo-1509042239860-f550ce710b93",
-			Kind:       string(entity.KindRecipe),
-			PublishedAt: time.Date(
-				2026, 3, 9, 9, 40, 0, 0, jst,
-			),
-		},
-
-		//deal
-		{
-			SourceName: "Bean Market",
-			Title:      "週末セール開催中",
-			Summary:    "定番ブレンド豆が期間限定で10%オフになります。",
-			URL:        "https://example.com/bean-market/weekend-sale",
-			ImageURL:   "https://images.unsplash.com/photo-1509042239860-f550ce710b93",
-			Kind:       string(entity.KindDeal),
-			PublishedAt: time.Date(
-				2026, 3, 8, 10, 0, 0, 0, jst,
-			),
-		},
-		{
-			SourceName: "Bean Market",
-			Title:      "新生活応援セット割",
-			Summary:    "ドリッパーと豆のセットをまとめ買いしやすくしました。",
-			URL:        "https://example.com/bean-market/new-life-set",
-			ImageURL:   "https://images.unsplash.com/photo-1459755486867-b55449bb39ff",
-			Kind:       string(entity.KindDeal),
-			PublishedAt: time.Date(
-				2026, 3, 7, 12, 15, 0, 0, jst,
-			),
-		},
-		{
-			SourceName: "Bean Market",
-			Title:      "送料無料キャンペーン",
-			Summary:    "一定額以上の購入で送料が無料になる期間限定施策です。",
-			URL:        "https://example.com/bean-market/free-shipping",
-			ImageURL:   "https://images.unsplash.com/photo-1497636577773-f1231844b336",
-			Kind:       string(entity.KindDeal),
-			PublishedAt: time.Date(
-				2026, 3, 6, 16, 30, 0, 0, jst,
-			),
-		},
-		{
-			SourceName: "Bean Market",
-			Title:      "会員限定クーポン配布",
-			Summary:    "ログイン会員向けに今月使える割引クーポンを配布中です。",
-			URL:        "https://example.com/bean-market/member-coupon",
-			ImageURL:   "https://images.unsplash.com/photo-1517048676732-d65bc937f952",
-			Kind:       string(entity.KindDeal),
-			PublishedAt: time.Date(
-				2026, 3, 5, 11, 5, 0, 0, jst,
-			),
-		},
-
-		//shop
-		{
-			SourceName: "Cafe Guide",
-			Title:      "渋谷の新店舗オープン",
-			Summary:    "駅近で立ち寄りやすい新しいコーヒースタンドを紹介します。",
-			URL:        "https://example.com/cafe-guide/shibuya-new-shop",
-			ImageURL:   "https://images.unsplash.com/photo-1501339847302-ac426a4a7cbb",
-			Kind:       string(entity.KindShop),
-			PublishedAt: time.Date(
-				2026, 3, 4, 11, 0, 0, 0, jst,
-			),
-		},
-		{
-			SourceName: "Cafe Guide",
-			Title:      "下北沢の隠れ家カフェ",
-			Summary:    "静かに過ごしたい日に向いている落ち着いた店舗です。",
-			URL:        "https://example.com/cafe-guide/shimokitazawa-cafe",
-			ImageURL:   "https://images.unsplash.com/photo-1453614512568-c4024d13c247",
-			Kind:       string(entity.KindShop),
-			PublishedAt: time.Date(
-				2026, 3, 3, 14, 45, 0, 0, jst,
-			),
-		},
-		{
-			SourceName: "Cafe Guide",
-			Title:      "新宿で朝早く開く一杯",
-			Summary:    "出勤前にも寄りやすい朝営業のコーヒースポットを紹介します。",
-			URL:        "https://example.com/cafe-guide/shinjuku-morning",
-			ImageURL:   "https://images.unsplash.com/photo-1509042239860-f550ce710b93",
-			Kind:       string(entity.KindShop),
-			PublishedAt: time.Date(
-				2026, 3, 2, 7, 30, 0, 0, jst,
-			),
-		},
-		{
-			SourceName: "Cafe Guide",
-			Title:      "浅草のレトロ喫茶まとめ",
-			Summary:    "観光ついでに立ち寄れる老舗寄りの喫茶店を整理しました。",
-			URL:        "https://example.com/cafe-guide/asakusa-retro",
-			ImageURL:   "https://images.unsplash.com/photo-1442512595331-e89e73853f31",
-			Kind:       string(entity.KindShop),
-			PublishedAt: time.Date(
-				2026, 3, 1, 15, 20, 0, 0, jst,
-			),
-		},
-	}
-
-	for _, def := range defs {
-		src, ok := sourceMap[def.SourceName]
-		if !ok {
-			return fmt.Errorf("seed item source not found: %s", def.SourceName)
-		}
-
-		var exists entity.Item
-		err := d.G.
-			Where("title = ? AND kind = ? AND source_id = ?", def.Title, def.Kind, src.ID).
-			First(&exists).
-			Error
-
-		if err == nil {
-			continue
-		}
-
-		if !errors.Is(err, gorm.ErrRecordNotFound) {
-			return fmt.Errorf("find seed item %s: %w", def.Title, err)
-		}
-
-		item := entity.Item{
-			Title:       def.Title,
-			Summary:     strPtr(def.Summary),
-			URL:         strPtr(def.URL),
-			ImageURL:    strPtr(def.ImageURL),
-			Kind:        def.Kind,
-			SourceID:    src.ID,
-			PublishedAt: def.PublishedAt,
-		}
-
-		if err := d.G.Create(&item).Error; err != nil {
-			return fmt.Errorf("create seed item %s: %w", def.Title, err)
+	for _, src := range sources {
+		if err := db.Create(&src).Error; err != nil {
+			return err
 		}
 	}
 
 	return nil
 }
 
-type seedItemDef struct {
-	SourceName  string
-	Title       string
-	Summary     string
-	URL         string
-	ImageURL    string
-	Kind        string
-	PublishedAt time.Time
+func seedItems(db *gorm.DB) error {
+	var count int64
+	if err := db.Model(&entity.Item{}).Count(&count).Error; err != nil {
+		return err
+	}
+
+	if count > 0 {
+		return nil
+	}
+
+	var sources []entity.Source
+	if err := db.Order("id asc").Find(&sources).Error; err != nil {
+		return err
+	}
+
+	if len(sources) == 0 {
+		return fmt.Errorf("seed source not found")
+	}
+
+	now := time.Now()
+
+	items := make([]entity.Item, 0, 40)
+
+	items = append(items, buildNewsItems(now, sources[0].ID)...)
+	items = append(items, buildRecipeItems(now, sources[1%len(sources)].ID)...)
+	items = append(items, buildDealItems(now, sources[2%len(sources)].ID)...)
+	items = append(items, buildShopItems(now, sources[3%len(sources)].ID)...)
+
+	for _, item := range items {
+		if err := db.Create(&item).Error; err != nil {
+			return err
+		}
+	}
+
+	return nil
 }
 
-func strPtr(s string) *string {
-	v := strings.TrimSpace(s)
+func buildNewsItems(now time.Time, sourceID int64) []entity.Item {
+	titles := []string{
+		"スペシャルティコーヒー市場で浅煎り需要が再び拡大",
+		"都市型ロースタリーがサブスク会員向け焙煎便を開始",
+		"ペーパーフィルター価格の見直しで家庭抽出のコスト感に変化",
+		"エチオピア新豆の入荷が始まりフローラル系の注目が上昇",
+		"カフェ運営者の間で小型焙煎機の導入相談が増加",
+		"コーヒーイベントで抽出器具の比較展示が話題に",
+		"リユースカップ運用を進める店舗が都心部で増えている",
+		"ミルの粒度安定性を重視した家庭用モデルが人気",
+		"豆価格の変動を受けて、定番ブレンドの構成比を調整する店舗が増加",
+	}
+
+	summaries := []string{
+		"業界トレンドの確認用ダミーデータです。短めの概要文を入れています。",
+		"会員制モデルと定期配送の組み合わせが、小規模ロースターでも試され始めています。",
+		"",
+		"花のような香りや柑橘系の明るさを前面に出した構成が目立っています。",
+		"導入コストを抑えながら自家焙煎へ移行したい事業者向けの話題です。",
+		"",
+		"実店舗での体験価値と環境配慮を両立する取り組みとして注目されています。",
+		"刃の違い、回転数、清掃性など、比較軸が一般消費者にも広がっています。",
+		"",
+	}
+
+	images := []string{
+		"https://images.unsplash.com/photo-1495474472287-4d71bcdd2085?auto=format&fit=crop&w=1200&q=80",
+		"https://images.unsplash.com/photo-1447933601403-0c6688de566e?auto=format&fit=crop&w=1200&q=80",
+		"",
+		"https://images.unsplash.com/photo-1517701604599-bb29b565090c?auto=format&fit=crop&w=1200&q=80",
+		"",
+		"https://images.unsplash.com/photo-1459755486867-b55449bb39ff?auto=format&fit=crop&w=1200&q=80",
+		"",
+		"https://images.unsplash.com/photo-1461988320302-91bde64fc8e4?auto=format&fit=crop&w=1200&q=80",
+		"",
+		"https://images.unsplash.com/photo-1494314671902-399b18174975?auto=format&fit=crop&w=1200&q=80",
+	}
+
+	urls := []string{
+		"https://example.com/news/1",
+		"https://example.com/news/2",
+		"",
+		"https://example.com/news/4",
+		"",
+		"https://example.com/news/6",
+		"",
+		"https://example.com/news/8",
+		"",
+		"https://example.com/news/10",
+	}
+
+	items := make([]entity.Item, 0, 10)
+
+	for i := 0; i < 10; i++ {
+		items = append(items, entity.Item{
+			Title:       titles[i],
+			Summary:     strPtrIfNotEmpty(summaries[i]),
+			URL:         strPtrIfNotEmpty(urls[i]),
+			ImageURL:    strPtrIfNotEmpty(images[i]),
+			Kind:        string(entity.KindNews),
+			SourceID:    sourceID,
+			PublishedAt: now.Add(time.Duration(-(i + 1)) * 6 * time.Hour),
+		})
+	}
+
+	return items
+}
+
+func buildRecipeItems(now time.Time, sourceID int64) []entity.Item {
+	titles := []string{
+		"ハンドドリップの基本比率を見直して甘さを出すレシピ",
+		"アイスコーヒー向けに濃度を上げた抽出手順",
+		"フレンチプレスで雑味を抑える湯温の考え方",
+		"朝の一杯を早く淹れるための時短ドリップ構成",
+		"中煎り豆でバランスを崩しにくい家庭向けレシピ",
+		"エアロプレスで酸味を丸くする短時間抽出",
+		"少量抽出でも味を薄くしにくい一人分レシピ",
+		"来客時に安定して淹れやすい二杯取りの基準",
+		"牛乳に合わせやすい深煎り向けの濃い抽出レシピ",
+	}
+
+	summaries := []string{
+		"粉量、湯量、抽出時間の基本を見直したダミーレシピです。",
+		"",
+		"湯温を少し下げるだけでも口当たりが穏やかになります。",
+		"",
+		"失敗しにくいレシピを置いて、一覧の見え方を確認します。",
+		"短時間でも薄くなりすぎないように攪拌を調整する想定です。",
+		"",
+		"抽出量が増えた時に味がぶれやすい人向けです。",
+		"",
+	}
+
+	images := []string{
+		"https://images.unsplash.com/photo-1495474472287-4d71bcdd2085?auto=format&fit=crop&w=1200&q=80",
+		"",
+		"https://images.unsplash.com/photo-1517701604599-bb29b565090c?auto=format&fit=crop&w=1200&q=80",
+		"",
+		"https://images.unsplash.com/photo-1442512595331-e89e73853f31?auto=format&fit=crop&w=1200&q=80",
+		"",
+		"https://images.unsplash.com/photo-1509042239860-f550ce710b93?auto=format&fit=crop&w=1200&q=80",
+		"",
+		"https://images.unsplash.com/photo-1461023058943-07fcbe16d735?auto=format&fit=crop&w=1200&q=80",
+		"",
+	}
+
+	urls := []string{
+		"",
+		"https://example.com/recipe/2",
+		"",
+		"https://example.com/recipe/4",
+		"",
+		"https://example.com/recipe/6",
+		"",
+		"https://example.com/recipe/8",
+		"",
+		"https://example.com/recipe/10",
+	}
+
+	items := make([]entity.Item, 0, 10)
+
+	for i := 0; i < 10; i++ {
+		items = append(items, entity.Item{
+			Title:       titles[i],
+			Summary:     strPtrIfNotEmpty(summaries[i]),
+			URL:         strPtrIfNotEmpty(urls[i]),
+			ImageURL:    strPtrIfNotEmpty(images[i]),
+			Kind:        string(entity.KindRecipe),
+			SourceID:    sourceID,
+			PublishedAt: now.Add(time.Duration(-(i + 1)) * 9 * time.Hour),
+		})
+	}
+
+	return items
+}
+
+func buildDealItems(now time.Time, sourceID int64) []entity.Item {
+	titles := []string{
+		"週末限定でドリッパーが10%オフ",
+		"初回購入向けの送料無料キャンペーン",
+		"深煎りセットのまとめ買い値引き",
+		"春の新生活向けコーヒー器具セール",
+		"ミルとケトルの同時購入で割引適用",
+		"定期便スタート記念のクーポン配布",
+		"アイスコーヒー器具の季節セール",
+		"店舗受け取り限定の豆セット特価",
+		"レビュー投稿で次回使えるクーポン配布",
+	}
+
+	summaries := []string{
+		"価格表示の見え方確認用ダミーデータ。",
+		"",
+		"まとめ買い導線がある時の一覧密度を確かめます。",
+		"",
+		"複数商品を組み合わせた訴求の見え方確認用です。",
+		"",
+		"季節キャンペーンの短い説明文です。",
+		"",
+		"",
+	}
+
+	images := []string{
+		"",
+		"https://images.unsplash.com/photo-1512568400610-62da28bc8a13?auto=format&fit=crop&w=1200&q=80",
+		"",
+		"https://images.unsplash.com/photo-1495474472287-4d71bcdd2085?auto=format&fit=crop&w=1200&q=80",
+		"",
+		"https://images.unsplash.com/photo-1447933601403-0c6688de566e?auto=format&fit=crop&w=1200&q=80",
+		"",
+		"https://images.unsplash.com/photo-1453614512568-c4024d13c247?auto=format&fit=crop&w=1200&q=80",
+		"",
+		"https://images.unsplash.com/photo-1461988320302-91bde64fc8e4?auto=format&fit=crop&w=1200&q=80",
+	}
+
+	urls := []string{
+		"https://example.com/deal/1",
+		"",
+		"https://example.com/deal/3",
+		"",
+		"https://example.com/deal/5",
+		"",
+		"https://example.com/deal/7",
+		"",
+		"https://example.com/deal/9",
+		"",
+	}
+
+	items := make([]entity.Item, 0, 10)
+
+	for i := 0; i < 10; i++ {
+		items = append(items, entity.Item{
+			Title:       titles[i],
+			Summary:     strPtrIfNotEmpty(summaries[i]),
+			URL:         strPtrIfNotEmpty(urls[i]),
+			ImageURL:    strPtrIfNotEmpty(images[i]),
+			Kind:        string(entity.KindDeal),
+			SourceID:    sourceID,
+			PublishedAt: now.Add(time.Duration(-(i + 1)) * 12 * time.Hour),
+		})
+	}
+
+	return items
+}
+
+func buildShopItems(now time.Time, sourceID int64) []entity.Item {
+	titles := []string{
+		"駅前に小型ロースタリー併設店がオープン",
+		"朝営業に強いカフェの新店舗情報",
+		"自家製スイーツと相性が良い人気店",
+		"深夜まで営業する作業向けカフェ",
+		"豆の量り売りに対応した地域密着店",
+		"静かな空間でハンドドリップを味わえる店",
+		"テイクアウト需要に強いスタンド型ショップ",
+		"焙煎体験イベントを行う店舗の紹介",
+		"地方ロースターの豆を週替わりで出す店",
+	}
+
+	summaries := []string{
+		"新店カードの見え方確認用です。",
+		"朝利用しやすい店舗情報を想定した短い説明です。",
+		"",
+		"作業利用、席数、電源有無などが気になる人向けの想定です。",
+		"",
+		"静かな店のニーズ確認用です。",
+		"",
+		"イベント性のある店舗情報が混ざった時の見え方確認です。",
+		"",
+	}
+
+	images := []string{
+		"https://images.unsplash.com/photo-1442512595331-e89e73853f31?auto=format&fit=crop&w=1200&q=80",
+		"",
+		"https://images.unsplash.com/photo-1453614512568-c4024d13c247?auto=format&fit=crop&w=1200&q=80",
+		"",
+		"https://images.unsplash.com/photo-1494314671902-399b18174975?auto=format&fit=crop&w=1200&q=80",
+		"",
+		"https://images.unsplash.com/photo-1509042239860-f550ce710b93?auto=format&fit=crop&w=1200&q=80",
+		"",
+		"https://images.unsplash.com/photo-1517701604599-bb29b565090c?auto=format&fit=crop&w=1200&q=80",
+		"",
+	}
+
+	urls := []string{
+		"",
+		"https://example.com/shop/2",
+		"",
+		"https://example.com/shop/4",
+		"",
+		"https://example.com/shop/6",
+		"",
+		"https://example.com/shop/8",
+		"",
+		"https://example.com/shop/10",
+	}
+
+	items := make([]entity.Item, 0, 10)
+
+	for i := 0; i < 10; i++ {
+		items = append(items, entity.Item{
+			Title:       titles[i],
+			Summary:     strPtrIfNotEmpty(summaries[i]),
+			URL:         strPtrIfNotEmpty(urls[i]),
+			ImageURL:    strPtrIfNotEmpty(images[i]),
+			Kind:        string(entity.KindShop),
+			SourceID:    sourceID,
+			PublishedAt: now.Add(time.Duration(-(i + 1)) * 15 * time.Hour),
+		})
+	}
+
+	return items
+}
+
+func strPtrIfNotEmpty(v string) *string {
 	if v == "" {
 		return nil
 	}
+
 	return &v
 }
