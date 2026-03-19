@@ -54,7 +54,7 @@ func (m *mockAuthUC) Me(userID int64) (entity.User, error) {
 	return m.meFn(userID)
 }
 
-// /me のレスポンスに Cache-Control: no-store が付くことを確認。
+// /meのレスポンスにCache-Control:no-storeが付き、contextのuser_id がusecaseに渡ることを確認。
 func TestAuthCtlMe_NoStore(t *testing.T) {
 	t.Parallel()
 
@@ -63,35 +63,16 @@ func TestAuthCtlMe_NoStore(t *testing.T) {
 	rec := httptest.NewRecorder()
 	c := e.NewContext(req, rec)
 
-	//middlewareがuser_id をcontextに入れた想定を作る。
+	// middlewareがuser_id をcontextに入れた想定を作る。
 	c.Set("user_id", int64(1))
 
+	called := false
 	ctl := NewAuthCtl(&mockAuthUC{
-		signupFn: func(in usecase.SignupIn) (entity.User, error) {
-			return entity.User{}, nil
-		},
-		verifyEmailFn: func(in usecase.VerifyEmailIn) error {
-			return nil
-		},
-		resendFn: func(in usecase.ResendVerifyIn) error {
-			return nil
-		},
-		loginFn: func(in usecase.LoginIn) (usecase.AuthOut, error) {
-			return usecase.AuthOut{}, nil
-		},
-		refreshFn: func(in usecase.RefreshIn) (usecase.AuthOut, error) {
-			return usecase.AuthOut{}, nil
-		},
-		logoutFn: func(in usecase.LogoutIn) error {
-			return nil
-		},
-		forgotFn: func(in usecase.ForgotPwIn) error {
-			return nil
-		},
-		resetFn: func(in usecase.ResetPwIn) error {
-			return nil
-		},
 		meFn: func(userID int64) (entity.User, error) {
+			called = true
+			if userID != 1 {
+				t.Fatalf("userID = %d, want 1", userID)
+			}
 			return entity.User{
 				ID:            1,
 				Email:         "a@test.com",
@@ -105,13 +86,16 @@ func TestAuthCtlMe_NoStore(t *testing.T) {
 	if err := ctl.Me(c); err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
+	if !called {
+		t.Fatalf("usecase.Me was not called")
+	}
 
-	//正常終了なので200を期待。
+	// 正常終了なので200を期待。
 	if rec.Code != http.StatusOK {
 		t.Fatalf("status = %d, want 200", rec.Code)
 	}
 
-	//個人情報レスポンスはキャッシュさせない。
+	// 個人情報レスポンスはキャッシュさせない。
 	if got := rec.Header().Get("Cache-Control"); got != "no-store" {
 		t.Fatalf("Cache-Control = %q, want no-store", got)
 	}
@@ -121,8 +105,7 @@ func TestAuthCtlMe_NoStore(t *testing.T) {
 		t.Fatalf("unmarshal error: %v", err)
 	}
 
-	//期待したuser情報がJSONに載っているか確認。
-	if body.User.ID != 1 {
-		t.Fatalf("user id = %d, want 1", body.User.ID)
+	if body.User.ID != 1 || body.User.Email != "a@test.com" || body.User.Role != "user" || body.User.TokenVer != 2 || !body.User.EmailVerified {
+		t.Fatalf("unexpected user body: %+v", body.User)
 	}
 }

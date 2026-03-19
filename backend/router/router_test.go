@@ -1,6 +1,7 @@
 package router
 
 import (
+	"encoding/json"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -62,9 +63,6 @@ type mockItemUCForRouter struct{}
 
 func (m *mockItemUCForRouter) Add(actor usecase.Actor, in usecase.AddItemIn) (entity.Item, error) {
 	return entity.Item{}, nil
-}
-func (m *mockItemUCForRouter) Get(id int64) (entity.Item, error) {
-	return entity.Item{ID: id, Title: "test item", Kind: "news"}, nil
 }
 func (m *mockItemUCForRouter) Search(q usecase.ItemQ) ([]entity.Item, error) {
 	return []entity.Item{}, nil
@@ -133,7 +131,7 @@ func newTestEcho() *echo.Echo {
 	return e
 }
 
-// public endpointであるGET /items/topが存在することを確認。
+// public endpointであるGET/items/topが200と期待したJSONshapeを返すことを確認。
 func TestRouter_PublicItemsTop_Exists(t *testing.T) {
 	t.Parallel()
 
@@ -144,12 +142,20 @@ func TestRouter_PublicItemsTop_Exists(t *testing.T) {
 
 	e.ServeHTTP(rec, req)
 
-	if rec.Code == http.StatusNotFound {
-		t.Fatalf("route not found")
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, want 200", rec.Code)
+	}
+
+	var body controller.TopItemsRes
+	if err := json.Unmarshal(rec.Body.Bytes(), &body); err != nil {
+		t.Fatalf("unmarshal error: %v", err)
+	}
+	if body.News == nil || body.Recipe == nil || body.Deal == nil || body.Shop == nil {
+		t.Fatalf("unexpected top items body: %+v", body)
 	}
 }
 
-// public endpointであるGET /itemsが存在することを確認。
+// public endpointであるGET/itemsが200と期待したJSON shapeを返すことを確認。
 func TestRouter_PublicItemsList_Exists(t *testing.T) {
 	t.Parallel()
 
@@ -160,12 +166,20 @@ func TestRouter_PublicItemsList_Exists(t *testing.T) {
 
 	e.ServeHTTP(rec, req)
 
-	if rec.Code == http.StatusNotFound {
-		t.Fatalf("route not found")
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, want 200", rec.Code)
+	}
+
+	var body controller.ItemListRes
+	if err := json.Unmarshal(rec.Body.Bytes(), &body); err != nil {
+		t.Fatalf("unmarshal error: %v", err)
+	}
+	if body.Items == nil {
+		t.Fatalf("unexpected items body: %+v", body)
 	}
 }
 
-// public endpointであるGET /sourcesが存在することを確認。
+// public endpointであるGET /sourcesが200と期待したJSONshapeを返すことを確認。
 func TestRouter_PublicSources_Exists(t *testing.T) {
 	t.Parallel()
 
@@ -176,7 +190,69 @@ func TestRouter_PublicSources_Exists(t *testing.T) {
 
 	e.ServeHTTP(rec, req)
 
-	if rec.Code == http.StatusNotFound {
-		t.Fatalf("route not found")
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, want 200", rec.Code)
+	}
+
+	var body controller.SourceListRes
+	if err := json.Unmarshal(rec.Body.Bytes(), &body); err != nil {
+		t.Fatalf("unmarshal error: %v", err)
+	}
+	if body.Sources == nil {
+		t.Fatalf("unexpected sources body: %+v", body)
+	}
+}
+
+// /auth/refreshはpublicではなく、refresh cookieが無いと401になることを確認。
+func TestRouter_RefreshRoute_RequiresRefreshCookie(t *testing.T) {
+	t.Parallel()
+
+	e := newTestEcho()
+
+	req := httptest.NewRequest(http.MethodPost, "/auth/refresh", nil)
+	req.Header.Set("X-CSRF-Token", "csrf")
+	req.AddCookie(&http.Cookie{Name: "csrf_token", Value: "csrf"})
+	rec := httptest.NewRecorder()
+
+	e.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusUnauthorized {
+		t.Fatalf("status = %d, want 401", rec.Code)
+	}
+
+	var body struct {
+		Error string `json:"error"`
+	}
+	if err := json.Unmarshal(rec.Body.Bytes(), &body); err != nil {
+		t.Fatalf("unmarshal error: %v", err)
+	}
+	if body.Error != "unauthorized" {
+		t.Fatalf("unexpected body: %+v", body)
+	}
+}
+
+// /auth/logoutはJWTが無いと401になることを確認。
+func TestRouter_LogoutRoute_RequiresJWT(t *testing.T) {
+	t.Parallel()
+
+	e := newTestEcho()
+
+	req := httptest.NewRequest(http.MethodPost, "/auth/logout", nil)
+	rec := httptest.NewRecorder()
+
+	e.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusUnauthorized {
+		t.Fatalf("status = %d, want 401", rec.Code)
+	}
+
+	var body struct {
+		Error string `json:"error"`
+	}
+	if err := json.Unmarshal(rec.Body.Bytes(), &body); err != nil {
+		t.Fatalf("unmarshal error: %v", err)
+	}
+	if body.Error != "unauthorized" {
+		t.Fatalf("unexpected body: %+v", body)
 	}
 }

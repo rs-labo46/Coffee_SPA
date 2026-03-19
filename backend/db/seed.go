@@ -96,6 +96,20 @@ func seedItems(db *gorm.DB) error {
 	return nil
 }
 
+func min4(a int, b int, c int, d int) int {
+	m := a
+	if b < m {
+		m = b
+	}
+	if c < m {
+		m = c
+	}
+	if d < m {
+		m = d
+	}
+	return m
+}
+
 func buildNewsItems(now time.Time, sourceID int64) []entity.Item {
 	titles := []string{
 		"スペシャルティコーヒー市場で浅煎り需要が再び拡大",
@@ -147,9 +161,11 @@ func buildNewsItems(now time.Time, sourceID int64) []entity.Item {
 		"https://example.com/news/10",
 	}
 
-	items := make([]entity.Item, 0, 10)
+	n := min4(len(titles), len(summaries), len(images), len(urls))
 
-	for i := 0; i < 10; i++ {
+	items := make([]entity.Item, 0, n)
+
+	for i := 0; i < n; i++ {
 		items = append(items, entity.Item{
 			Title:       titles[i],
 			Summary:     strPtrIfNotEmpty(summaries[i]),
@@ -215,17 +231,19 @@ func buildRecipeItems(now time.Time, sourceID int64) []entity.Item {
 		"https://example.com/recipe/10",
 	}
 
-	items := make([]entity.Item, 0, 10)
+	n := min4(len(titles), len(summaries), len(images), len(urls))
 
-	for i := 0; i < 10; i++ {
+	items := make([]entity.Item, 0, n)
+
+	for i := 0; i < n; i++ {
 		items = append(items, entity.Item{
 			Title:       titles[i],
 			Summary:     strPtrIfNotEmpty(summaries[i]),
 			URL:         strPtrIfNotEmpty(urls[i]),
 			ImageURL:    strPtrIfNotEmpty(images[i]),
-			Kind:        string(entity.KindRecipe),
+			Kind:        string(entity.KindNews),
 			SourceID:    sourceID,
-			PublishedAt: now.Add(time.Duration(-(i + 1)) * 9 * time.Hour),
+			PublishedAt: now.Add(time.Duration(-(i + 1)) * 6 * time.Hour),
 		})
 	}
 
@@ -283,17 +301,19 @@ func buildDealItems(now time.Time, sourceID int64) []entity.Item {
 		"",
 	}
 
-	items := make([]entity.Item, 0, 10)
+	n := min4(len(titles), len(summaries), len(images), len(urls))
 
-	for i := 0; i < 10; i++ {
+	items := make([]entity.Item, 0, n)
+
+	for i := 0; i < n; i++ {
 		items = append(items, entity.Item{
 			Title:       titles[i],
 			Summary:     strPtrIfNotEmpty(summaries[i]),
 			URL:         strPtrIfNotEmpty(urls[i]),
 			ImageURL:    strPtrIfNotEmpty(images[i]),
-			Kind:        string(entity.KindDeal),
+			Kind:        string(entity.KindNews),
 			SourceID:    sourceID,
-			PublishedAt: now.Add(time.Duration(-(i + 1)) * 12 * time.Hour),
+			PublishedAt: now.Add(time.Duration(-(i + 1)) * 6 * time.Hour),
 		})
 	}
 
@@ -351,17 +371,19 @@ func buildShopItems(now time.Time, sourceID int64) []entity.Item {
 		"https://example.com/shop/10",
 	}
 
-	items := make([]entity.Item, 0, 10)
+	n := min4(len(titles), len(summaries), len(images), len(urls))
 
-	for i := 0; i < 10; i++ {
+	items := make([]entity.Item, 0, n)
+
+	for i := 0; i < n; i++ {
 		items = append(items, entity.Item{
 			Title:       titles[i],
 			Summary:     strPtrIfNotEmpty(summaries[i]),
 			URL:         strPtrIfNotEmpty(urls[i]),
 			ImageURL:    strPtrIfNotEmpty(images[i]),
-			Kind:        string(entity.KindShop),
+			Kind:        string(entity.KindNews),
 			SourceID:    sourceID,
-			PublishedAt: now.Add(time.Duration(-(i + 1)) * 15 * time.Hour),
+			PublishedAt: now.Add(time.Duration(-(i + 1)) * 6 * time.Hour),
 		})
 	}
 

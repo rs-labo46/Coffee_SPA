@@ -100,10 +100,12 @@ func (ctl ItemCtl) Create(c echo.Context) error {
 	var req AddItemReq
 
 	if err := bindJSON(c, &req); err != nil {
-		return err
+		return writeErr(c, err)
 	}
 
-	item, err := ctl.uc.Add(actorFromCtx(c), usecase.AddItemIn{
+	actor := actorFromCtx(c)
+
+	item, err := ctl.uc.Add(actor, usecase.AddItemIn{
 		Title:       req.Title,
 		Summary:     req.Summary,
 		URL:         req.URL,

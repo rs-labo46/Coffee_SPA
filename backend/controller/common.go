@@ -53,7 +53,7 @@ func userAgent(c echo.Context) string {
 
 func bindJSON(c echo.Context, dst interface{}) error {
 	if err := c.Bind(dst); err != nil {
-		return c.JSON(http.StatusBadRequest, ErrRes{Error: "invalid_request"})
+		return usecase.ErrInvalidRequest
 	}
 	return nil
 }
