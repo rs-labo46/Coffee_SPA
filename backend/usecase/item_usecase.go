@@ -3,6 +3,7 @@ package usecase
 import (
 	"encoding/json"
 	"errors"
+	"strings"
 	"time"
 
 	"coffee-spa/entity"
@@ -44,18 +45,20 @@ func (u *ItemUC) Add(actor Actor, input AddItemIn) (entity.Item, error) {
 		return entity.Item{}, ErrInvalidRequest
 	}
 
-	publishedAt, err := time.Parse(time.RFC3339, input.PublishedAt)
+	normalized := normalizeItemInput(input)
+
+	publishedAt, err := time.Parse(time.RFC3339, normalized.PublishedAt)
 	if err != nil {
 		return entity.Item{}, ErrInvalidRequest
 	}
 
 	item, err := u.item.Create(entity.Item{
-		Title:       input.Title,
-		Summary:     input.Summary,
-		URL:         input.URL,
-		ImageURL:    input.ImageURL,
-		Kind:        input.Kind,
-		SourceID:    input.SourceID,
+		Title:       normalized.Title,
+		Summary:     normalized.Summary,
+		URL:         normalized.URL,
+		ImageURL:    normalized.ImageURL,
+		Kind:        normalized.Kind,
+		SourceID:    normalized.SourceID,
 		PublishedAt: publishedAt,
 	})
 	if err != nil {
@@ -89,6 +92,9 @@ func (u *ItemUC) Search(q ItemQ) ([]entity.Item, error) {
 		return nil, ErrInvalidRequest
 	}
 
+	q.Q = strings.TrimSpace(q.Q)
+	q.Kind = strings.TrimSpace(q.Kind)
+
 	items, err := u.item.List(q)
 	if err != nil {
 		return nil, mapRepoErr(err)
@@ -108,6 +114,29 @@ func (u *ItemUC) Top(limit int) (TopItems, error) {
 	}
 
 	return topItems, nil
+}
+
+func normalizeItemInput(input AddItemIn) AddItemIn {
+	input.Title = strings.TrimSpace(input.Title)
+	input.Kind = strings.TrimSpace(input.Kind)
+	input.PublishedAt = strings.TrimSpace(input.PublishedAt)
+	input.Summary = trimNullableString(input.Summary)
+	input.URL = trimNullableString(input.URL)
+	input.ImageURL = trimNullableString(input.ImageURL)
+	return input
+}
+
+func trimNullableString(value *string) *string {
+	if value == nil {
+		return nil
+	}
+
+	trimmed := strings.TrimSpace(*value)
+	if trimmed == "" {
+		return nil
+	}
+
+	return &trimmed
 }
 
 func mapRepoErr(err error) error {

@@ -125,8 +125,6 @@ func main() {
 		srcCtl,
 		c.JWTSecret,
 		userRepo,
-		rtRepo,
-		rl,
 		c.FEURL,
 	)
 

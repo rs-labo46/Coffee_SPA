@@ -184,7 +184,7 @@ function AppHeader() {
 
             <div className="flex flex-col gap-3 xl:items-end">
               <nav className="flex flex-wrap items-center gap-2">
-                <HeaderNavItem to="/" label="トップ" />
+                {/* <HeaderNavItem to="/" label="トップ" /> */}
                 {user ? <HeaderNavItem to="/me" label="マイページ" /> : null}
                 {user?.role === "admin" ? (
                   <HeaderNavItem to="/admin" label="管理" />

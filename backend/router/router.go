@@ -4,7 +4,6 @@ import (
 	"coffee-spa/controller"
 	"coffee-spa/middleware"
 	"coffee-spa/repository"
-	"coffee-spa/usecase"
 
 	"github.com/labstack/echo/v4"
 )
@@ -17,8 +16,6 @@ func New(
 	srcCtl controller.SrcCtl,
 	jwtSecret string,
 	userRepo repository.UserRepository,
-	rtRepo repository.RtRepository,
-	rl usecase.RateLimiter,
 	feURL string,
 ) {
 	//全体共通middleware
@@ -41,7 +38,7 @@ func New(
 	pub.GET("/sources", srcCtl.List)
 
 	//csrf required
-	//refreshはcookie+csrf+rate limitが必要
+	//refreshはcookie+csrfが必要
 	csrf := e.Group("")
 	csrf.Use(middleware.CSRF())
 	csrf.Use(middleware.RequireRefreshCookie())

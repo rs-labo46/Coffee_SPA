@@ -7,24 +7,6 @@ import (
 	"coffee-spa/usecase"
 )
 
-// 認証のvalidator
-type AuthVal interface {
-	Signup(email string, pw string) error
-	Login(email string, pw string) error
-	NewPw(pw string) error
-}
-
-// itemのvalidator
-type ItemVal interface {
-	NewItem(input usecase.AddItemIn) error
-	ListItem(q usecase.ItemQ) error
-}
-
-// sourceのvalidator
-type SourceVal interface {
-	NewSource(input usecase.AddSourceIn) error
-}
-
 type AuthValidator struct {
 	email policy.EmailPol
 	pw    policy.PwPol

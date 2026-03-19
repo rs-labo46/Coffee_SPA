@@ -1,8 +1,6 @@
 package repository
 
 import (
-	"errors"
-
 	"coffee-spa/entity"
 
 	"gorm.io/gorm"
@@ -21,39 +19,6 @@ func (r *sourceRepository) Create(s entity.Source) (entity.Source, error) {
 	if err != nil {
 		if isDup(err) {
 			return entity.Source{}, ErrConflict
-		}
-		return entity.Source{}, ErrInternal
-	}
-
-	return s, nil
-}
-
-func (r *sourceRepository) GetByID(id int64) (entity.Source, error) {
-	var s entity.Source
-
-	err := r.db.
-		First(&s, id).
-		Error
-	if err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return entity.Source{}, ErrNotFound
-		}
-		return entity.Source{}, ErrInternal
-	}
-
-	return s, nil
-}
-
-func (r *sourceRepository) GetByName(name string) (entity.Source, error) {
-	var s entity.Source
-
-	err := r.db.
-		Where("name = ?", name).
-		First(&s).
-		Error
-	if err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return entity.Source{}, ErrNotFound
 		}
 		return entity.Source{}, ErrInternal
 	}

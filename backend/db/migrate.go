@@ -24,6 +24,36 @@ func Migrate(d DB) error {
 		return fmt.Errorf("auto migrate: %w", err)
 	}
 
+	if err := d.G.Exec(`
+		DO $$
+		BEGIN
+			IF NOT EXISTS (
+				SELECT 1 FROM pg_constraint WHERE conname = 'chk_users_role'
+			) THEN
+				ALTER TABLE users
+				ADD CONSTRAINT chk_users_role
+				CHECK (role IN ('user', 'admin'));
+			END IF;
+		END$$;
+	`).Error; err != nil {
+		return fmt.Errorf("create chk_users_role: %w", err)
+	}
+
+	if err := d.G.Exec(`
+		DO $$
+		BEGIN
+			IF NOT EXISTS (
+				SELECT 1 FROM pg_constraint WHERE conname = 'chk_items_kind'
+			) THEN
+				ALTER TABLE items
+				ADD CONSTRAINT chk_items_kind
+				CHECK (kind IN ('news', 'recipe', 'deal', 'shop'));
+			END IF;
+		END$$;
+	`).Error; err != nil {
+		return fmt.Errorf("create chk_items_kind: %w", err)
+	}
+
 	// itemsのindex
 	if err := d.G.Exec(`
 		CREATE INDEX IF NOT EXISTS idx_items_kind

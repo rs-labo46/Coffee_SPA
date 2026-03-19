@@ -46,21 +46,6 @@ function kindLabel(kind: ItemKind): string {
   }
 }
 
-function kindDesc(kind: ItemKind): string {
-  switch (kind) {
-    case "news":
-      return "上位3件を含めたニュース一覧です。";
-    case "recipe":
-      return "上位3件を含めたレシピ一覧です。";
-    case "deal":
-      return "上位3件を含めたセール一覧です。";
-    case "shop":
-      return "上位3件を含めた店舗一覧です。";
-    default:
-      return "";
-  }
-}
-
 function fmtDate(v: string): string {
   const d = new Date(v);
   if (Number.isNaN(d.getTime())) {

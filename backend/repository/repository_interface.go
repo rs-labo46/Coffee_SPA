@@ -59,14 +59,11 @@ type RtRepository interface {
 
 type SourceRepository interface {
 	Create(s entity.Source) (entity.Source, error)
-	GetByID(id int64) (entity.Source, error)
-	GetByName(name string) (entity.Source, error)
 	List() ([]entity.Source, error)
 }
 
 type ItemRepository interface {
 	Create(i entity.Item) (entity.Item, error)
-	GetByID(id int64) (entity.Item, error)
 	List(q ItemQ) ([]entity.Item, error)
 	Top(cap int) (TopItems, error)
 }

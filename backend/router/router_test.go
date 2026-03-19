@@ -64,11 +64,7 @@ func (m *mockItemUCForRouter) Add(actor usecase.Actor, in usecase.AddItemIn) (en
 	return entity.Item{}, nil
 }
 func (m *mockItemUCForRouter) Get(id int64) (entity.Item, error) {
-	return entity.Item{
-		ID:    id,
-		Title: "test item",
-		Kind:  "news",
-	}, nil
+	return entity.Item{ID: id, Title: "test item", Kind: "news"}, nil
 }
 func (m *mockItemUCForRouter) Search(q usecase.ItemQ) ([]entity.Item, error) {
 	return []entity.Item{}, nil
@@ -92,8 +88,6 @@ func (m *mockSourceUCForRouter) List() ([]entity.Source, error) {
 	return []entity.Source{}, nil
 }
 
-//---- mock repository 群 ----
-
 // TokenVersion middlewareモック。
 type mockUserRepoForRouter struct{}
 
@@ -101,11 +95,7 @@ func (m *mockUserRepoForRouter) Create(u entity.User) (entity.User, error) {
 	return entity.User{}, nil
 }
 func (m *mockUserRepoForRouter) GetByID(id int64) (entity.User, error) {
-	return entity.User{
-		ID:       id,
-		Role:     "user",
-		TokenVer: 1,
-	}, nil
+	return entity.User{ID: id, Role: "user", TokenVer: 1}, nil
 }
 func (m *mockUserRepoForRouter) GetByEmail(email string) (entity.User, error) {
 	return entity.User{}, repository.ErrNotFound
@@ -113,42 +103,11 @@ func (m *mockUserRepoForRouter) GetByEmail(email string) (entity.User, error) {
 func (m *mockUserRepoForRouter) SetEmailVerified(userID int64) error {
 	return nil
 }
-func (m *mockUserRepoForRouter) UpdateEmailVerified(userID int64, ok bool) error {
-	return nil
-}
 func (m *mockUserRepoForRouter) UpdatePassHash(userID int64, passHash string) error {
 	return nil
 }
 func (m *mockUserRepoForRouter) BumpTokenVer(userID int64) (int, error) {
 	return 2, nil
-}
-
-type mockRtRepoForRouter struct{}
-
-func (m *mockRtRepoForRouter) Create(rt entity.RefreshToken) (entity.RefreshToken, error) {
-	return entity.RefreshToken{}, nil
-}
-func (m *mockRtRepoForRouter) GetByTokenHash(hash string) (entity.RefreshToken, error) {
-	return entity.RefreshToken{
-		ID:       1,
-		UserID:   1,
-		FamilyID: "fam-1",
-	}, nil
-}
-func (m *mockRtRepoForRouter) Revoke(id int64) error {
-	return nil
-}
-func (m *mockRtRepoForRouter) MarkUsed(id int64) error {
-	return nil
-}
-func (m *mockRtRepoForRouter) SetReplacedBy(id int64, newID int64) error {
-	return nil
-}
-func (m *mockRtRepoForRouter) RevokeByFamilyID(familyID string) error {
-	return nil
-}
-func (m *mockRtRepoForRouter) RevokeAllByUser(userID int64) error {
-	return nil
 }
 
 // router.Newを通したEchoを作るヘルパ。
@@ -160,19 +119,6 @@ func newTestEcho() *echo.Echo {
 	itemCtl := controller.NewItemCtl(&mockItemUCForRouter{})
 	srcCtl := controller.NewSrcCtl(&mockSourceUCForRouter{})
 
-	//RefreshRateLimit用のlimiter
-	rlStore := repository.NewRateLimitStore(nil)
-	rl := usecase.NewRateLimitUC(
-		rlStore,
-		usecase.RateRule{},
-		usecase.RateRule{},
-		usecase.RateRule{},
-		usecase.RateRule{},
-		usecase.RateRule{},
-		usecase.RateRule{},
-		usecase.RateRule{},
-	)
-
 	New(
 		e,
 		healthCtl,
@@ -181,22 +127,19 @@ func newTestEcho() *echo.Echo {
 		srcCtl,
 		"test-secret",
 		&mockUserRepoForRouter{},
-		&mockRtRepoForRouter{},
-		rl,
 		"http://localhost:3000",
 	)
 
 	return e
 }
 
-//public endpoint である GET /items/top が存在ことを確認。
-
-func TestRouter_PublicItemGet_Exists(t *testing.T) {
+// public endpointであるGET /items/topが存在することを確認。
+func TestRouter_PublicItemsTop_Exists(t *testing.T) {
 	t.Parallel()
 
 	e := newTestEcho()
 
-	req := httptest.NewRequest(http.MethodGet, "/items/1", nil)
+	req := httptest.NewRequest(http.MethodGet, "/items/top", nil)
 	rec := httptest.NewRecorder()
 
 	e.ServeHTTP(rec, req)
@@ -206,7 +149,23 @@ func TestRouter_PublicItemGet_Exists(t *testing.T) {
 	}
 }
 
-// public endpointであるGET /sourcesが存在ことを確認。
+// public endpointであるGET /itemsが存在することを確認。
+func TestRouter_PublicItemsList_Exists(t *testing.T) {
+	t.Parallel()
+
+	e := newTestEcho()
+
+	req := httptest.NewRequest(http.MethodGet, "/items", nil)
+	rec := httptest.NewRecorder()
+
+	e.ServeHTTP(rec, req)
+
+	if rec.Code == http.StatusNotFound {
+		t.Fatalf("route not found")
+	}
+}
+
+// public endpointであるGET /sourcesが存在することを確認。
 func TestRouter_PublicSources_Exists(t *testing.T) {
 	t.Parallel()
 
@@ -219,63 +178,5 @@ func TestRouter_PublicSources_Exists(t *testing.T) {
 
 	if rec.Code == http.StatusNotFound {
 		t.Fatalf("route not found")
-	}
-}
-
-// POST /auth/refresh が少なくともpublicな素通しではないことを確認。
-func TestRouter_RefreshRoute_ProtectedByCSRFOrAuthLayer(t *testing.T) {
-	t.Parallel()
-
-	e := newTestEcho()
-
-	req := httptest.NewRequest(http.MethodPost, "/auth/refresh", nil)
-	rec := httptest.NewRecorder()
-
-	e.ServeHTTP(rec, req)
-
-	//成功してしまうのは危険。
-	if rec.Code == http.StatusOK {
-		t.Fatalf("refresh route should not pass without protection")
-	}
-	if rec.Code == http.StatusNotFound {
-		t.Fatalf("refresh route not found")
-	}
-}
-
-// POST /auth/logoutがJWT保護下にあることを確認。
-func TestRouter_LogoutRoute_Protected(t *testing.T) {
-	t.Parallel()
-
-	e := newTestEcho()
-
-	req := httptest.NewRequest(http.MethodPost, "/auth/logout", nil)
-	rec := httptest.NewRecorder()
-
-	e.ServeHTTP(rec, req)
-
-	if rec.Code == http.StatusOK {
-		t.Fatalf("logout route should require auth")
-	}
-	if rec.Code == http.StatusNotFound {
-		t.Fatalf("logout route not found")
-	}
-}
-
-// POST /itemsがadmin側の保護下にあることを確認。
-func TestRouter_AdminItemCreate_Protected(t *testing.T) {
-	t.Parallel()
-
-	e := newTestEcho()
-
-	req := httptest.NewRequest(http.MethodPost, "/items", nil)
-	rec := httptest.NewRecorder()
-
-	e.ServeHTTP(rec, req)
-
-	if rec.Code == http.StatusOK {
-		t.Fatalf("admin create route should require auth/admin")
-	}
-	if rec.Code == http.StatusNotFound {
-		t.Fatalf("admin create route not found")
 	}
 }

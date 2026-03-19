@@ -2,6 +2,7 @@ package usecase
 
 import (
 	"encoding/json"
+	"strings"
 
 	"coffee-spa/entity"
 	"coffee-spa/repository"
@@ -41,9 +42,11 @@ func (u *SourceUC) Add(actor Actor, sourceInput AddSourceIn) (entity.Source, err
 		return entity.Source{}, ErrInvalidRequest
 	}
 
+	normalized := normalizeSourceInput(sourceInput)
+
 	src, err := u.source.Create(entity.Source{
-		Name:    sourceInput.Name,
-		SiteURL: sourceInput.SiteURL,
+		Name:    normalized.Name,
+		SiteURL: normalized.SiteURL,
 	})
 	if err != nil {
 		return entity.Source{}, mapRepoErr(err)
@@ -78,4 +81,10 @@ func (u *SourceUC) List() ([]entity.Source, error) {
 	}
 
 	return sources, nil
+}
+
+func normalizeSourceInput(input AddSourceIn) AddSourceIn {
+	input.Name = strings.TrimSpace(input.Name)
+	input.SiteURL = trimNullableString(input.SiteURL)
+	return input
 }

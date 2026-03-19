@@ -19,7 +19,7 @@ func NewItemCtl(uc usecase.ItemUsecase) ItemCtl {
 	}
 }
 
-// item 作成入力。
+// item作成入力。
 type AddItemReq struct {
 	Title       string  `json:"title"`
 	Summary     *string `json:"summary"`
@@ -30,12 +30,12 @@ type AddItemReq struct {
 	PublishedAt string  `json:"published_at"`
 }
 
-// item 単体のレスポンス。
+// item単体のレスポンス。
 type ItemRes struct {
 	Item entity.Item `json:"item"`
 }
 
-// item 一覧のレスポンス。
+// item一覧のレスポンス。
 type ItemListRes struct {
 	Items []entity.Item `json:"items"`
 }
@@ -51,6 +51,9 @@ type TopItemsRes struct {
 // GET /items/topを処理。
 func (ctl ItemCtl) Top(c echo.Context) error {
 	limit, err := qInt(c, "limit", 3)
+	if err != nil {
+		return writeErr(c, err)
+	}
 
 	topItems, err := ctl.uc.Top(limit)
 	if err != nil {
@@ -65,7 +68,7 @@ func (ctl ItemCtl) Top(c echo.Context) error {
 	})
 }
 
-// GET /items を処理。
+// GET /itemsを処理。
 func (ctl ItemCtl) List(c echo.Context) error {
 	limit, err := qInt(c, "limit", 20)
 	if err != nil {
@@ -91,15 +94,13 @@ func (ctl ItemCtl) List(c echo.Context) error {
 	})
 }
 
-// POST /items を処理。
+// POST /itemsを処理。
 // 認可はmiddleware側で行う。
 func (ctl ItemCtl) Create(c echo.Context) error {
 	var req AddItemReq
 
-	if err := c.Bind(&req); err != nil {
-		return c.JSON(http.StatusBadRequest, ErrRes{
-			Error: "invalid_request",
-		})
+	if err := bindJSON(c, &req); err != nil {
+		return err
 	}
 
 	item, err := ctl.uc.Add(actorFromCtx(c), usecase.AddItemIn{

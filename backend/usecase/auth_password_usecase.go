@@ -8,7 +8,7 @@ import (
 	"time"
 )
 
-// reset token を発行してメール送信する
+// reset tokenを発行してメール送信する
 func (u *AuthUC) ForgotPw(ForgotPasswordInput ForgotPwIn) error {
 	email := normEmail(ForgotPasswordInput.Email)
 	if err := u.val.EmailOnly(email); err != nil {
@@ -94,7 +94,7 @@ func (u *AuthUC) ForgotPw(ForgotPasswordInput ForgotPwIn) error {
 	return nil
 }
 
-// password更新 + token消費 + 全refresh失効
+// password更新 + reset token消費 + 全refresh失効
 func (u *AuthUC) ResetPw(ResetPasswordInput ResetPwIn) error {
 	if strings.TrimSpace(ResetPasswordInput.Token) == "" {
 		return ErrInvalidRequest
@@ -147,7 +147,7 @@ func (u *AuthUC) ResetPw(ResetPasswordInput ResetPwIn) error {
 	return nil
 }
 
-// user を返す
+// userを返す
 func (u *AuthUC) Me(userID int64) (entity.User, error) {
 	user, err := u.user.GetByID(userID)
 	if err != nil {

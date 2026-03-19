@@ -6,7 +6,7 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/golang-jwt/jwt/v4"
+	"github.com/golang-jwt/jwt/v5"
 	"golang.org/x/crypto/bcrypt"
 )
 
@@ -44,14 +44,12 @@ type accessClaims struct {
 	jwt.RegisteredClaims
 }
 
-// JWTMaker を作る
+// JWTMakerを作る
 func NewJWTMaker(secret string) *JWTMaker {
-	return &JWTMaker{
-		secret: []byte(secret),
-	}
+	return &JWTMaker{secret: []byte(secret)}
 }
 
-// access token を作る
+// access tokenを作る
 func (m *JWTMaker) NewAccess(userID int64, role string, tokenVer int) (string, error) {
 	now := time.Now()
 

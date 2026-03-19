@@ -40,6 +40,7 @@ type User struct {
 type EmailVerify struct {
 	ID        int64      `gorm:"column:id;primaryKey;autoIncrement" json:"id"`
 	UserID    int64      `gorm:"column:user_id;not null;index" json:"user_id"`
+	User      User       `gorm:"foreignKey:UserID;constraint:OnUpdate:CASCADE,OnDelete:CASCADE;" json:"-"`
 	TokenHash string     `gorm:"column:token_hash;type:varchar;not null;uniqueIndex" json:"-"`
 	ExpiresAt time.Time  `gorm:"column:expires_at;not null" json:"expires_at"`
 	UsedAt    *time.Time `gorm:"column:used_at" json:"used_at"`
@@ -49,6 +50,7 @@ type EmailVerify struct {
 type PwReset struct {
 	ID        int64      `gorm:"column:id;primaryKey;autoIncrement" json:"id"`
 	UserID    int64      `gorm:"column:user_id;not null;index" json:"user_id"`
+	User      User       `gorm:"foreignKey:UserID;constraint:OnUpdate:CASCADE,OnDelete:CASCADE;" json:"-"`
 	TokenHash string     `gorm:"column:token_hash;type:varchar;not null;uniqueIndex" json:"-"`
 	ExpiresAt time.Time  `gorm:"column:expires_at;not null" json:"expires_at"`
 	UsedAt    *time.Time `gorm:"column:used_at" json:"used_at"`
@@ -57,15 +59,17 @@ type PwReset struct {
 
 // RefreshTokenはrefresh_tokensテーブル
 type RefreshToken struct {
-	ID           int64      `gorm:"column:id;primaryKey;autoIncrement" json:"id"`
-	UserID       int64      `gorm:"column:user_id;not null;index" json:"user_id"`
-	FamilyID     string     `gorm:"column:family_id;type:varchar;not null;index" json:"family_id"`
-	TokenHash    string     `gorm:"column:token_hash;type:varchar;not null;uniqueIndex" json:"-"`
-	ExpiresAt    time.Time  `gorm:"column:expires_at;not null" json:"expires_at"`
-	RevokedAt    *time.Time `gorm:"column:revoked_at" json:"revoked_at"`
-	UsedAt       *time.Time `gorm:"column:used_at" json:"used_at"`
-	ReplacedByID *int64     `gorm:"column:replaced_by_id" json:"replaced_by_id"`
-	CreatedAt    time.Time  `gorm:"column:created_at;not null;autoCreateTime" json:"created_at"`
+	ID           int64         `gorm:"column:id;primaryKey;autoIncrement" json:"id"`
+	UserID       int64         `gorm:"column:user_id;not null;index" json:"user_id"`
+	User         User          `gorm:"foreignKey:UserID;constraint:OnUpdate:CASCADE,OnDelete:CASCADE;" json:"-"`
+	FamilyID     string        `gorm:"column:family_id;type:varchar;not null;index" json:"family_id"`
+	TokenHash    string        `gorm:"column:token_hash;type:varchar;not null;uniqueIndex" json:"-"`
+	ExpiresAt    time.Time     `gorm:"column:expires_at;not null" json:"expires_at"`
+	RevokedAt    *time.Time    `gorm:"column:revoked_at" json:"revoked_at"`
+	UsedAt       *time.Time    `gorm:"column:used_at" json:"used_at"`
+	ReplacedByID *int64        `gorm:"column:replaced_by_id" json:"replaced_by_id"`
+	ReplacedBy   *RefreshToken `gorm:"foreignKey:ReplacedByID;constraint:OnUpdate:CASCADE,OnDelete:SET NULL;" json:"-"`
+	CreatedAt    time.Time     `gorm:"column:created_at;not null;autoCreateTime" json:"created_at"`
 }
 
 // Sourceはsourcesテーブル
@@ -85,6 +89,7 @@ type Item struct {
 	ImageURL    *string   `gorm:"column:image_url;type:varchar" json:"image_url"`
 	Kind        string    `gorm:"column:kind;type:varchar;not null;index" json:"kind"`
 	SourceID    int64     `gorm:"column:source_id;not null;index" json:"source_id"`
+	Source      Source    `gorm:"foreignKey:SourceID;constraint:OnUpdate:CASCADE,OnDelete:RESTRICT;" json:"-"`
 	PublishedAt time.Time `gorm:"column:published_at;not null" json:"published_at"`
 	CreatedAt   time.Time `gorm:"column:created_at;not null;autoCreateTime" json:"created_at"`
 }
@@ -94,6 +99,7 @@ type AuditLog struct {
 	ID        int64          `gorm:"column:id;primaryKey;autoIncrement" json:"id"`
 	Type      string         `gorm:"column:type;type:varchar;not null;index" json:"type"`
 	UserID    *int64         `gorm:"column:user_id;index" json:"user_id"`
+	User      *User          `gorm:"foreignKey:UserID;constraint:OnUpdate:CASCADE,OnDelete:SET NULL;" json:"-"`
 	IP        string         `gorm:"column:ip;type:varchar;not null" json:"ip"`
 	UA        string         `gorm:"column:ua;type:varchar;not null" json:"ua"`
 	MetaJSON  datatypes.JSON `gorm:"column:meta_json;type:jsonb;not null;default:'{}'" json:"meta_json"`

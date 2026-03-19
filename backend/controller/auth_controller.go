@@ -30,7 +30,7 @@ type VerifyEmailReq struct {
 	Token string `json:"token"`
 }
 
-// verify 再送の入力。
+// verify再送の入力。
 type ResendVerifyReq struct {
 	Email string `json:"email"`
 }
@@ -52,7 +52,7 @@ type ResetPwReq struct {
 	NewPw string `json:"new_password"`
 }
 
-// 認証系レスポンスで返す user 。
+// 認証系レスポンスで返すuser 。
 type AuthUserRes struct {
 	ID            int64  `json:"id"`
 	Email         string `json:"email"`
@@ -61,30 +61,28 @@ type AuthUserRes struct {
 	EmailVerified bool   `json:"email_verified"`
 }
 
-// signup 成功レスポンス。
+// signup成功レスポンス。
 type SignupRes struct {
 	User AuthUserRes `json:"user"`
 }
 
-// login / refresh 成功レスポンス。
+// login / refresh成功レスポンス。
 type AuthRes struct {
 	AccessToken string      `json:"access_token"`
 	User        AuthUserRes `json:"user"`
 }
 
-// /me 成功レスポンス。
+// /me成功レスポンス。
 type MeRes struct {
 	User AuthUserRes `json:"user"`
 }
 
-// POST /auth/signup を処理。
+// POST /auth/signupを処理。
 func (ctl AuthCtl) Signup(c echo.Context) error {
 	var req SignupReq
 
-	if err := c.Bind(&req); err != nil {
-		return c.JSON(http.StatusBadRequest, ErrRes{
-			Error: "invalid_request",
-		})
+	if err := bindJSON(c, &req); err != nil {
+		return err
 	}
 
 	u, err := ctl.uc.Signup(usecase.SignupIn{
@@ -102,14 +100,12 @@ func (ctl AuthCtl) Signup(c echo.Context) error {
 	})
 }
 
-// POST /auth/verify-email を処理。
+// POST /auth/verify-emailを処理。
 func (ctl AuthCtl) VerifyEmail(c echo.Context) error {
 	var req VerifyEmailReq
 
-	if err := c.Bind(&req); err != nil {
-		return c.JSON(http.StatusBadRequest, ErrRes{
-			Error: "invalid_request",
-		})
+	if err := bindJSON(c, &req); err != nil {
+		return err
 	}
 
 	err := ctl.uc.VerifyEmail(usecase.VerifyEmailIn{
@@ -124,14 +120,12 @@ func (ctl AuthCtl) VerifyEmail(c echo.Context) error {
 	return c.NoContent(http.StatusNoContent)
 }
 
-// POST /auth/resend-verify を処理。
+// POST /auth/resend-verifyを処理。
 func (ctl AuthCtl) ResendVerify(c echo.Context) error {
 	var req ResendVerifyReq
 
-	if err := c.Bind(&req); err != nil {
-		return c.JSON(http.StatusBadRequest, ErrRes{
-			Error: "invalid_request",
-		})
+	if err := bindJSON(c, &req); err != nil {
+		return err
 	}
 
 	err := ctl.uc.ResendVerify(usecase.ResendVerifyIn{
@@ -146,14 +140,12 @@ func (ctl AuthCtl) ResendVerify(c echo.Context) error {
 	return c.NoContent(http.StatusNoContent)
 }
 
-// POST /auth/login を処理。
+// POST /auth/loginを処理。
 func (ctl AuthCtl) Login(c echo.Context) error {
 	var req LoginReq
 
-	if err := c.Bind(&req); err != nil {
-		return c.JSON(http.StatusBadRequest, ErrRes{
-			Error: "invalid_request",
-		})
+	if err := bindJSON(c, &req); err != nil {
+		return err
 	}
 
 	loginResult, err := ctl.uc.Login(usecase.LoginIn{
@@ -175,7 +167,7 @@ func (ctl AuthCtl) Login(c echo.Context) error {
 	})
 }
 
-// POST /auth/refresh を処理。
+// POST /auth/refreshを処理。
 func (ctl AuthCtl) Refresh(c echo.Context) error {
 	refreshResult, err := ctl.uc.Refresh(usecase.RefreshIn{
 		RefreshToken: refreshCookie(c),
@@ -195,7 +187,7 @@ func (ctl AuthCtl) Refresh(c echo.Context) error {
 	})
 }
 
-// POST /auth/logout を処理。
+// POST /auth/logoutを処理。
 func (ctl AuthCtl) Logout(c echo.Context) error {
 	err := ctl.uc.Logout(usecase.LogoutIn{
 		UserID:       userIDFromCtx(c),
@@ -213,7 +205,7 @@ func (ctl AuthCtl) Logout(c echo.Context) error {
 	return c.NoContent(http.StatusNoContent)
 }
 
-// GET /me を処理。
+// GET /meを処理。
 func (ctl AuthCtl) Me(c echo.Context) error {
 	u, err := ctl.uc.Me(userIDFromCtx(c))
 	if err != nil {
@@ -227,14 +219,12 @@ func (ctl AuthCtl) Me(c echo.Context) error {
 	})
 }
 
-// POST /auth/password/forgot を処理。
+// POST /auth/password/forgotを処理。
 func (ctl AuthCtl) ForgotPw(c echo.Context) error {
 	var req ForgotPwReq
 
-	if err := c.Bind(&req); err != nil {
-		return c.JSON(http.StatusBadRequest, ErrRes{
-			Error: "invalid_request",
-		})
+	if err := bindJSON(c, &req); err != nil {
+		return err
 	}
 
 	err := ctl.uc.ForgotPw(usecase.ForgotPwIn{
@@ -249,14 +239,12 @@ func (ctl AuthCtl) ForgotPw(c echo.Context) error {
 	return c.NoContent(http.StatusNoContent)
 }
 
-// POST /auth/password/reset を処理。
+// POST /auth/password/resetを処理。
 func (ctl AuthCtl) ResetPw(c echo.Context) error {
 	var req ResetPwReq
 
-	if err := c.Bind(&req); err != nil {
-		return c.JSON(http.StatusBadRequest, ErrRes{
-			Error: "invalid_request",
-		})
+	if err := bindJSON(c, &req); err != nil {
+		return err
 	}
 
 	err := ctl.uc.ResetPw(usecase.ResetPwIn{
@@ -272,7 +260,7 @@ func (ctl AuthCtl) ResetPw(c echo.Context) error {
 	return c.NoContent(http.StatusNoContent)
 }
 
-// entity.User を認証レスポンス用 struct に変換。
+// entity.Userを認証レスポンス用に変換。
 func toAuthUserRes(u entity.User) AuthUserRes {
 	return AuthUserRes{
 		ID:            u.ID,

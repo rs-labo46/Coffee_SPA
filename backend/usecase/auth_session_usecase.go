@@ -1,13 +1,15 @@
 package usecase
 
 import (
+	"errors"
 	"strings"
 	"time"
 
 	"coffee-spa/entity"
+	"coffee-spa/repository"
 )
 
-// Login は access / refresh / csrf を発行する
+// Loginはaccess / refresh / csrfを発行する
 func (u *AuthUC) Login(input LoginIn) (AuthOut, error) {
 	if err := u.val.Login(input.Email, input.Pw); err != nil {
 		return AuthOut{}, ErrInvalidRequest
@@ -88,7 +90,7 @@ func (u *AuthUC) Login(input LoginIn) (AuthOut, error) {
 	}, nil
 }
 
-// refresh token を回転させる
+// refresh tokenをローリングさせる
 func (u *AuthUC) Refresh(input RefreshIn) (AuthOut, error) {
 	if strings.TrimSpace(input.RefreshToken) == "" {
 		_ = u.writeAudit("auth.refresh.fail", nil, input.IP, input.UA, nil)
@@ -139,24 +141,32 @@ func (u *AuthUC) Refresh(input RefreshIn) (AuthOut, error) {
 	}
 
 	if err := u.rt.MarkUsed(rt.ID); err != nil {
-		return AuthOut{}, u.handleRefreshReuse(rt, input)
+		_ = u.rt.Revoke(newRT.ID)
+		if errors.Is(err, repository.ErrConflict) {
+			return AuthOut{}, u.handleRefreshReuse(rt, input)
+		}
+		return AuthOut{}, mapRepoErr(err)
 	}
 
 	if err := u.rt.Revoke(rt.ID); err != nil {
+		_ = u.rt.Revoke(newRT.ID)
 		return AuthOut{}, mapRepoErr(err)
 	}
 
 	if err := u.rt.SetReplacedBy(rt.ID, newRT.ID); err != nil {
+		_ = u.rt.Revoke(newRT.ID)
 		return AuthOut{}, mapRepoErr(err)
 	}
 
 	access, err := u.tk.NewAccess(user.ID, user.Role, user.TokenVer)
 	if err != nil {
+		_ = u.rt.Revoke(newRT.ID)
 		return AuthOut{}, ErrInternal
 	}
 
 	csrf, err := u.tk.NewCSRF()
 	if err != nil {
+		_ = u.rt.Revoke(newRT.ID)
 		return AuthOut{}, ErrInternal
 	}
 
@@ -170,6 +180,7 @@ func (u *AuthUC) Refresh(input RefreshIn) (AuthOut, error) {
 			FamilyID: rt.FamilyID,
 		},
 	); err != nil {
+		_ = u.rt.Revoke(newRT.ID)
 		return AuthOut{}, err
 	}
 

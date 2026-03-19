@@ -15,14 +15,6 @@ func (m *mockSourceRepo2) Create(s entity.Source) (entity.Source, error) {
 	return m.createFn(s)
 }
 
-func (m *mockSourceRepo2) GetByID(id int64) (entity.Source, error) {
-	return entity.Source{}, nil
-}
-
-func (m *mockSourceRepo2) GetByName(name string) (entity.Source, error) {
-	return entity.Source{}, nil
-}
-
 func (m *mockSourceRepo2) List() ([]entity.Source, error) {
 	return m.listFn()
 }
