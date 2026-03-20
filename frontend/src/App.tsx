@@ -19,6 +19,7 @@ import { SignupPage } from "./pages/signup";
 import TopPage from "./pages/top";
 import { VerifyEmailPage } from "./pages/verify-email";
 import { ForgotPasswordPage } from "./pages/forgot-password";
+import { ItemDetailPage } from "./pages/item-detail";
 import { ResetPasswordPage } from "./pages/reset-password";
 
 type GuardProps = {
@@ -114,20 +115,6 @@ function HeaderAuthActions() {
           className="inline-flex min-h-12 items-center justify-center rounded-full bg-[#4e342e] px-4 py-2 text-sm font-bold text-white transition hover:opacity-90"
         >
           新規登録
-        </NavLink>
-
-        <NavLink
-          to="/resend-verify"
-          className={({ isActive }) =>
-            [
-              "inline-flex min-h-12 items-center justify-center rounded-full border px-4 py-2 text-sm font-bold transition",
-              isActive
-                ? "border-[#c8b2a1] bg-[#efe4db] text-[#7b523a]"
-                : "border-[#e1d2c7] bg-[#fbf7f2] text-[#8b6a58] hover:bg-[#f5ece4]",
-            ].join(" ")
-          }
-        >
-          確認メール再送
         </NavLink>
       </div>
     );
@@ -234,6 +221,7 @@ function AppRoutes() {
         <Routes>
           <Route path="/" element={<TopPage />} />
           <Route path="/items" element={<ItemsPage />} />
+          <Route path="/items/:id" element={<ItemDetailPage />} />
           <Route path="/login" element={<LoginPage />} />
           <Route path="/signup" element={<SignupPage />} />
           <Route path="/verify-email" element={<VerifyEmailPage />} />

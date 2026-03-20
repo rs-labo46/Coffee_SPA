@@ -99,6 +99,14 @@ func Migrate(d DB) error {
 		return fmt.Errorf("create gin_items_summary_trgm: %w", err)
 	}
 
+	if err := d.G.Exec(`
+		CREATE INDEX IF NOT EXISTS gin_items_body_trgm
+		ON items
+		USING gin (body gin_trgm_ops);
+	`).Error; err != nil {
+		return fmt.Errorf("create gin_items_body_trgm: %w", err)
+	}
+
 	//refresh_tokensのindex
 	if err := d.G.Exec(`
 		CREATE INDEX IF NOT EXISTS idx_rt_user_id

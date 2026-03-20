@@ -85,6 +85,7 @@ type Item struct {
 	ID          int64     `gorm:"column:id;primaryKey;autoIncrement" json:"id"`
 	Title       string    `gorm:"column:title;type:varchar;not null" json:"title"`
 	Summary     *string   `gorm:"column:summary;type:varchar" json:"summary"`
+	Body        *string   `gorm:"column:body;type:text" json:"body"`
 	URL         *string   `gorm:"column:url;type:varchar" json:"url"`
 	ImageURL    *string   `gorm:"column:image_url;type:varchar" json:"image_url"`
 	Kind        string    `gorm:"column:kind;type:varchar;not null;index" json:"kind"`

@@ -64,6 +64,7 @@ type SourceRepository interface {
 
 type ItemRepository interface {
 	Create(i entity.Item) (entity.Item, error)
+	GetByID(id int64) (entity.Item, error)
 	List(q ItemQ) ([]entity.Item, error)
 	Top(cap int) (TopItems, error)
 }

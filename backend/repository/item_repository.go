@@ -1,6 +1,8 @@
 package repository
 
 import (
+	"errors"
+
 	"coffee-spa/entity"
 
 	"gorm.io/gorm"
@@ -26,6 +28,23 @@ func (r *itemRepository) Create(i entity.Item) (entity.Item, error) {
 	return i, nil
 }
 
+func (r *itemRepository) GetByID(id int64) (entity.Item, error) {
+	var item entity.Item
+
+	err := r.db.
+		Preload("Source").
+		First(&item, id).
+		Error
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return entity.Item{}, ErrNotFound
+		}
+		return entity.Item{}, ErrInternal
+	}
+
+	return item, nil
+}
+
 func (r *itemRepository) List(q ItemQ) ([]entity.Item, error) {
 	var xs []entity.Item
 
@@ -38,7 +57,8 @@ func (r *itemRepository) List(q ItemQ) ([]entity.Item, error) {
 	if q.Q != "" {
 		like := "%" + q.Q + "%"
 		tx = tx.Where(
-			"title ILIKE ? OR COALESCE(summary, '') ILIKE ?",
+			"title ILIKE ? OR COALESCE(summary, '') ILIKE ? OR COALESCE(body, '') ILIKE ?",
+			like,
 			like,
 			like,
 		)
@@ -86,7 +106,6 @@ func (r *itemRepository) Top(cap int) (TopItems, error) {
 		Shop:   []entity.Item{},
 	}
 
-	// cap=0 は4キー固定で空配列を返す。
 	if cap == 0 {
 		return topItems, nil
 	}

@@ -1,196 +1,266 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { api, toErrorMessage } from "../lib/api";
+import { formatDisplayDateTime } from "../lib/date";
 import {
   cardImage,
+  halfPreviewText,
   hasRef,
+  isFreshItem,
   kindBadgeLabel,
-  kindTitleLabel,
+  kindDescLabel,
+  previewText,
+  type Item,
+  type ItemDetailRes,
   type ItemKind,
+  type Source,
+  type SourceListRes,
+  type TopRes,
 } from "../lib/item";
-import { formatDisplayDate } from "../lib/date";
 
-type Item = {
-  id: number;
-  title: string;
-  summary: string | null;
-  url: string | null;
-  image_url: string | null;
+type KindTab = {
   kind: ItemKind;
-  source_id: number;
-  published_at: string;
-  created_at: string;
+  label: string;
 };
 
-type TopRes = {
-  news: Item[];
-  recipe: Item[];
-  deal: Item[];
-  shop: Item[];
-};
+const kindTabs: KindTab[] = [
+  { kind: "news", label: "主要" },
+  { kind: "recipe", label: "レシピ" },
+  { kind: "deal", label: "セール" },
+  { kind: "shop", label: "店舗" },
+];
 
-function sectionDesc(kind: ItemKind): string {
+function itemListByKind(data: TopRes, kind: ItemKind): Item[] {
   switch (kind) {
     case "news":
-      return "豆、器具、焙煎、業界トレンドの更新をまとめています。";
+      return data.news;
     case "recipe":
-      return "自宅で再現しやすい抽出レシピや淹れ方のコツを掲載しています。";
+      return data.recipe;
     case "deal":
-      return "クーポン、セール、期間限定キャンペーンを確認できます。";
+      return data.deal;
     case "shop":
-      return "新店舗や気になるコーヒーショップの情報をまとめています。";
+      return data.shop;
     default:
-      return "";
+      return [];
   }
 }
 
-function sectionListPath(kind: ItemKind): string {
-  return `/items?kind=${kind}`;
+function latestPublishedAt(data: TopRes): string {
+  const times = [data.news, data.recipe, data.deal, data.shop]
+    .flat()
+    .map((item) => item.published_at)
+    .filter((value) => value !== "")
+    .sort((left, right) => right.localeCompare(left));
+
+  return times[0] || "";
 }
 
-function ItemCard({ item }: { item: Item }) {
-  const ref = hasRef(item.url);
+function sourceNameById(sources: Source[], sourceID: number): string {
+  const found = sources.find((source) => source.id === sourceID);
+  return found?.name || "未設定";
+}
 
+function HeadlineRow({
+  item,
+  sourceName,
+  onOpen,
+}: {
+  item: Item;
+  sourceName: string;
+  onOpen: (id: number) => void;
+}) {
   return (
-    <article className="group flex h-full flex-col overflow-hidden rounded-[28px] border border-[#e5d7cb] bg-white shadow-[0_6px_20px_rgba(93,64,55,0.08)]">
-      <div className="aspect-[16/10] overflow-hidden">
-        <img
-          src={cardImage(item.image_url)}
-          alt={item.title}
-          className="h-full w-full object-cover transition duration-300 group-hover:scale-[1.01]"
-        />
-      </div>
+    <button
+      type="button"
+      onClick={() => onOpen(item.id)}
+      className="flex w-full items-start gap-3 border-b border-[#d8e1ef] px-1 py-3 text-left transition hover:bg-[#f6f9fe]"
+    >
+      <span className="mt-[10px] h-2.5 w-2.5 shrink-0 rounded-full bg-[#204b9b]" />
 
-      <div className="flex flex-1 flex-col px-6 py-5">
-        <div className="mb-3 flex items-center gap-3">
-          <span className="rounded-full bg-[#f4ebe3] px-3 py-1.5 text-[11px] font-bold tracking-[0.28em] text-[#7b523a]">
-            {kindBadgeLabel(item.kind)}
-          </span>
-
-          <span className="text-sm font-semibold text-[#8d8178]">
-            {formatDisplayDate(item.published_at)}
-          </span>
+      <div className="min-w-0 flex-1">
+        <div className="flex flex-wrap items-center gap-2">
+          <h3 className="line-clamp-1 text-[18px] font-bold leading-8 text-[#16326e]">
+            {item.title}
+          </h3>
+          {isFreshItem(item.published_at) ? (
+            <span className="rounded-full bg-[#ffb400] px-2 py-0.5 text-[11px] font-black text-white">
+              NEW
+            </span>
+          ) : null}
         </div>
 
-        <h3 className="mb-3 line-clamp-2 text-xl font-extrabold leading-tight text-[#4e342e]">
-          {item.title}
-        </h3>
-
-        <p className="mb-5 line-clamp-3 text-sm font-semibold leading-7 text-[#6d625b]">
-          {item.summary ?? "概要は未登録です。"}
-        </p>
-
-        <div className="mt-auto">
-          {ref ? (
-            <span className="inline-flex items-center rounded-full border border-[#d9c6b8] bg-[#fcf7f2] px-4 py-2 text-sm font-bold text-[#7b523a]">
-              参考記事あり
-            </span>
-          ) : (
-            <span className="inline-flex items-center rounded-full border border-[#eadfd5] bg-[#faf5f0] px-4 py-2 text-sm font-bold text-[#9b8b7f]">
-              記事カード
-            </span>
-          )}
+        <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs font-semibold text-[#6b7ea6]">
+          <span>{formatDisplayDateTime(item.published_at)}</span>
+          <span>{sourceName}</span>
+          <span>{kindBadgeLabel(item.kind)}</span>
         </div>
       </div>
-    </article>
+    </button>
   );
 }
 
-function SectionBlock({ kind, items }: { kind: ItemKind; items: Item[] }) {
-  const recent = items.slice(0, 3);
+function DetailModal({
+  open,
+  item,
+  source,
+  loading,
+  msg,
+  onClose,
+}: {
+  open: boolean;
+  item: Item | null;
+  source: Source | null;
+  loading: boolean;
+  msg: string;
+  onClose: () => void;
+}) {
+  useEffect(() => {
+    if (!open) {
+      return undefined;
+    }
+
+    function onKeyDown(event: KeyboardEvent) {
+      if (event.key === "Escape") {
+        onClose();
+      }
+    }
+
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [open, onClose]);
+
+  if (!open) {
+    return null;
+  }
 
   return (
-    <section
-      id={kind}
-      className="rounded-[36px] border border-[#e6d9ce] bg-[#fffdfa] px-6 py-7 shadow-[0_8px_24px_rgba(110,78,56,0.06)] md:px-8 md:py-8"
-    >
-      <div className="mb-6 flex flex-col gap-4 border-b border-[#eadfd5] pb-6 md:flex-row md:items-end md:justify-between">
-        <div>
-          <div className="mb-3 inline-flex rounded-full bg-[#f3e8de] px-4 py-2 text-xs font-bold tracking-[0.32em] text-[#7b523a]">
-            {kindBadgeLabel(kind)}
+    <div className="fixed inset-0 z-[70] flex items-center justify-center bg-[#12284a]/45 px-4 py-6">
+      <div className="absolute inset-0" onClick={onClose} />
+
+      <div className="relative z-10 max-h-[90vh] w-full max-w-[840px] overflow-hidden rounded-[20px] border border-[#b8c8e2] bg-white shadow-[0_20px_48px_rgba(18,40,74,0.25)]">
+        <div className="flex items-start justify-between gap-4 border-b border-[#d7e0ef] bg-[#f4f7fc] px-5 py-4">
+          <div>
+            <p className="text-sm font-black tracking-[0.24em] text-[#4668ad] uppercase">
+              modal preview
+            </p>
+            <h2 className="mt-1 text-2xl font-black text-[#16326e]">
+              記事プレビュー
+            </h2>
           </div>
 
-          <h2 className="mb-2 text-[26px] font-black text-[#4e342e] md:text-[30px]">
-            {kindTitleLabel(kind)}
-          </h2>
-
-          <p className="max-w-3xl text-sm font-semibold leading-7 text-[#766b63]">
-            {sectionDesc(kind)}
-          </p>
+          <button
+            type="button"
+            onClick={onClose}
+            className="inline-flex h-11 w-11 items-center justify-center rounded-full border border-[#c7d5eb] text-xl font-black text-[#2a4fa3] transition hover:bg-white"
+          >
+            ×
+          </button>
         </div>
 
-        <Link
-          to={sectionListPath(kind)}
-          className="inline-flex items-center rounded-full border border-[#d9c6b8] bg-white px-4 py-2 text-sm font-bold text-[#7b523a] transition hover:bg-[#f7efe8]"
-        >
-          一覧へ
-        </Link>
-      </div>
+        <div className="max-h-[calc(90vh-88px)] overflow-y-auto px-5 py-5 md:px-6 md:py-6">
+          {loading ? (
+            <div className="rounded-[16px] border border-[#d7e0ef] bg-[#f7faff] px-5 py-10 text-center text-base font-bold text-[#355184]">
+              読み込み中です...
+            </div>
+          ) : msg ? (
+            <div className="rounded-[16px] border border-[#f0c7c2] bg-[#fff4f2] px-5 py-10 text-center text-base font-bold text-[#8a4b3a]">
+              {msg}
+            </div>
+          ) : item ? (
+            <div className="space-y-5">
+              <img
+                src={cardImage(item.image_url)}
+                alt={item.title}
+                className="h-[240px] w-full rounded-[16px] border border-[#d7e0ef] object-cover"
+              />
 
-      <div className="grid gap-5 lg:grid-cols-[1.1fr_1.9fr]">
-        <div className="rounded-[28px] border border-[#eadfd5] bg-[#fcf8f4] px-5 py-5">
-          <p className="mb-3 text-xs font-black tracking-[0.24em] text-[#a1775b] uppercase">
-            latest 3
-          </p>
-
-          <div className="grid gap-3">
-            {recent.map((item, idx) => (
-              <div
-                key={item.id}
-                className="rounded-2xl border border-[#eadfd5] bg-white px-4 py-4"
-              >
-                <div className="mb-2 flex items-center gap-3">
-                  <span className="inline-flex h-7 w-7 items-center justify-center rounded-full bg-[#6f4e37] text-xs font-black text-white">
-                    {idx + 1}
-                  </span>
-
-                  <span className="text-xs font-bold tracking-[0.18em] text-[#9b7a66] uppercase">
-                    {formatDisplayDate(item.published_at)}
-                  </span>
-                </div>
-
-                <p className="mb-2 line-clamp-2 text-sm font-black leading-6 text-[#4e342e]">
-                  {item.title}
-                </p>
-
-                <p className="text-xs font-bold text-[#8a7b71]">
-                  {hasRef(item.url) ? "参考記事あり" : "記事カード"}
-                </p>
+              <div className="flex flex-wrap items-center gap-2 text-xs font-semibold text-[#6b7ea6]">
+                <span className="rounded-full border border-[#a9bbdc] bg-[#eef3fb] px-3 py-1 font-black tracking-[0.2em] text-[#2a4fa3]">
+                  {kindBadgeLabel(item.kind)}
+                </span>
+                <span>{formatDisplayDateTime(item.published_at)}</span>
+                <span>{source?.name || "未設定"}</span>
               </div>
-            ))}
-          </div>
-        </div>
 
-        <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
-          {recent.map((item) => (
-            <ItemCard key={item.id} item={item} />
-          ))}
+              <h3 className="text-2xl font-black leading-tight text-[#16326e]">
+                {item.title}
+              </h3>
+
+              {item.summary ? (
+                <p className="rounded-[16px] border border-[#d7e0ef] bg-[#f7faff] px-4 py-4 text-sm font-semibold leading-7 text-[#30466d]">
+                  {item.summary}
+                </p>
+              ) : null}
+
+              <p className="text-base font-medium leading-8 text-[#30466d]">
+                {halfPreviewText(item)}
+              </p>
+
+              <div className="flex flex-wrap gap-3">
+                <Link
+                  to={`/items/${item.id}`}
+                  className="inline-flex min-h-11 items-center justify-center rounded-full bg-[#2a4fa3] px-5 py-2 text-sm font-bold text-white transition hover:opacity-90"
+                >
+                  もっと見る
+                </Link>
+                {hasRef(item.url) ? (
+                  <a
+                    href={item.url || "#"}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="inline-flex min-h-11 items-center justify-center rounded-full border border-[#2a4fa3] px-5 py-2 text-sm font-bold text-[#2a4fa3] transition hover:bg-[#eef3fb]"
+                  >
+                    参考元へ
+                  </a>
+                ) : null}
+              </div>
+            </div>
+          ) : null}
         </div>
       </div>
-    </section>
+    </div>
   );
 }
 
 export default function TopPage() {
-  const [data, setData] = useState<TopRes | null>(null);
+  const [data, setData] = useState<TopRes>({
+    news: [],
+    recipe: [],
+    deal: [],
+    shop: [],
+  });
+  const [sources, setSources] = useState<Source[]>([]);
   const [loading, setLoading] = useState(true);
   const [msg, setMsg] = useState("");
+  const [activeKind, setActiveKind] = useState<ItemKind>("news");
+  const [modalOpen, setModalOpen] = useState(false);
+  const [detailItem, setDetailItem] = useState<Item | null>(null);
+  const [detailSource, setDetailSource] = useState<Source | null>(null);
+  const [loadingDetail, setLoadingDetail] = useState(false);
+  const [detailMsg, setDetailMsg] = useState("");
 
   useEffect(() => {
     async function run() {
+      setLoading(true);
+      setMsg("");
+
       try {
-        const res = await api<TopRes>("/items/top?limit=3", {
-          method: "GET",
-        });
+        const [topRes, sourceRes] = await Promise.all([
+          api<TopRes>("/items/top?limit=8", { method: "GET" }),
+          api<SourceListRes>("/sources", { method: "GET" }),
+        ]);
 
-        if (!res) {
-          setMsg("データが空です。");
-          return;
-        }
-
-        setData(res);
+        setData(
+          topRes || {
+            news: [],
+            recipe: [],
+            deal: [],
+            shop: [],
+          },
+        );
+        setSources(sourceRes?.sources || []);
       } catch (err: unknown) {
-        setMsg(toErrorMessage(err, "一覧の取得に失敗しました。"));
+        setMsg(toErrorMessage(err, "トップ情報の取得に失敗しました。"));
       } finally {
         setLoading(false);
       }
@@ -199,20 +269,50 @@ export default function TopPage() {
     void run();
   }, []);
 
-  const quickLinks = useMemo(
-    () => [
-      { label: "ニュース", to: "#news" },
-      { label: "レシピ", to: "#recipe" },
-      { label: "セール", to: "#deal" },
-      { label: "店舗", to: "#shop" },
-    ],
-    [],
+  const items = useMemo(
+    () => itemListByKind(data, activeKind),
+    [activeKind, data],
   );
+  const featured = items[0] || null;
+  const subItems = items.slice(0, 8);
+  const updatedAt = useMemo(() => latestPublishedAt(data), [data]);
+
+  async function openModal(itemID: number) {
+    setModalOpen(true);
+    setLoadingDetail(true);
+    setDetailMsg("");
+
+    try {
+      const res = await api<ItemDetailRes>(`/items/${itemID}`, {
+        method: "GET",
+      });
+
+      if (!res) {
+        setDetailMsg("記事の取得に失敗しました。");
+        setDetailItem(null);
+        setDetailSource(null);
+        return;
+      }
+
+      setDetailItem(res.item);
+      setDetailSource(res.source);
+    } catch (err: unknown) {
+      setDetailMsg(toErrorMessage(err, "記事の取得に失敗しました。"));
+      setDetailItem(null);
+      setDetailSource(null);
+    } finally {
+      setLoadingDetail(false);
+    }
+  }
+
+  function closeModal() {
+    setModalOpen(false);
+  }
 
   if (loading) {
     return (
-      <main className="min-h-screen bg-[#f6f1eb] px-4 py-10 md:px-8">
-        <div className="mx-auto max-w-[1280px] rounded-[32px] border border-[#eadfd4] bg-white px-8 py-16 text-center text-lg font-bold text-[#6f6259] shadow-[0_8px_24px_rgba(110,78,56,0.06)]">
+      <main className="min-h-screen bg-[#eef2f8] px-4 py-8 md:px-8 md:py-10">
+        <div className="mx-auto max-w-[1280px] rounded-[20px] border border-[#9eb3d6] bg-white px-8 py-16 text-center text-lg font-bold text-[#355184] shadow-[0_8px_24px_rgba(27,52,120,0.08)]">
           読み込み中です...
         </div>
       </main>
@@ -221,52 +321,142 @@ export default function TopPage() {
 
   if (msg) {
     return (
-      <main className="min-h-screen bg-[#f6f1eb] px-4 py-10 md:px-8">
-        <div className="mx-auto max-w-[1280px] rounded-[32px] border border-[#eadfd4] bg-white px-8 py-16 text-center text-lg font-bold text-[#8a4b3a] shadow-[0_8px_24px_rgba(110,78,56,0.06)]">
+      <main className="min-h-screen bg-[#eef2f8] px-4 py-8 md:px-8 md:py-10">
+        <div className="mx-auto max-w-[1280px] rounded-[20px] border border-[#9eb3d6] bg-white px-8 py-16 text-center text-lg font-bold text-[#8a4b3a] shadow-[0_8px_24px_rgba(27,52,120,0.08)]">
           {msg}
         </div>
       </main>
     );
   }
 
-  if (!data) {
-    return null;
-  }
-
   return (
-    <main className="min-h-screen bg-[#f6f1eb] px-4 py-8 md:px-8 md:py-10">
-      <div className="mx-auto flex max-w-[1280px] flex-col gap-8">
-        <section className="rounded-[36px] border border-[#e6d9ce] bg-gradient-to-br from-[#fffdfa] via-[#fbf5ef] to-[#f3e6d9] px-7 py-8 shadow-[0_8px_24px_rgba(110,78,56,0.06)] md:px-10">
-          <div className="grid gap-8 lg:grid-cols-[1.4fr_0.9fr]">
-            <div>
-              <p className="mb-3 text-sm font-black tracking-[0.32em] text-[#a1775b] uppercase">
-                coffee portal
-              </p>
-
-              <h2 className="mb-4 text-3xl font-black leading-tight text-[#4e342e] md:text-5xl">
-                豆・抽出・セール・店舗の最新情報をお届け
-              </h2>
-
-              <div className="mt-6 flex flex-wrap gap-3">
-                {quickLinks.map((link) => (
-                  <a
-                    key={link.label}
-                    href={link.to}
-                    className="rounded-full border border-[#d9c6b8] bg-white px-5 py-2.5 text-sm font-bold text-[#7b523a] transition hover:bg-[#f7efe8]"
+    <>
+      <main className="min-h-screen bg-[#eef2f8] px-3 py-6 md:px-8 md:py-10">
+        <div className="mx-auto max-w-[1280px]">
+          <section className="overflow-hidden rounded-[18px] border border-[#91a7d0] bg-white shadow-[0_10px_28px_rgba(27,52,120,0.08)]">
+            <div className="border-b border-[#b8c8e2] bg-[#f0f4fb] px-3 py-3 md:px-5">
+              <div className="flex flex-wrap items-center gap-1 md:gap-2">
+                {kindTabs.map((tab) => (
+                  <button
+                    key={tab.kind}
+                    type="button"
+                    onClick={() => setActiveKind(tab.kind)}
+                    className={[
+                      "rounded-t-md border border-b-0 px-4 py-3 text-lg font-bold transition md:px-6",
+                      activeKind === tab.kind
+                        ? "border-[#91a7d0] bg-white text-[#16326e]"
+                        : "border-transparent bg-transparent text-[#2a4fa3] hover:bg-[#e7eef9]",
+                    ].join(" ")}
                   >
-                    {link.label}
-                  </a>
+                    {tab.label}
+                  </button>
                 ))}
               </div>
             </div>
-          </div>
-        </section>
 
-        <SectionBlock kind="news" items={data.news} />
-        <SectionBlock kind="recipe" items={data.recipe} />
-        <SectionBlock kind="deal" items={data.deal} />
-        <SectionBlock kind="shop" items={data.shop} />
-      </div>
-    </main>
+            <div className="px-4 py-5 md:px-6 md:py-6">
+              <div className="mb-4 flex flex-wrap items-center justify-between gap-3 text-[#5b6f98]">
+                <div>
+                  <p className="text-sm font-black tracking-[0.22em] text-[#4668ad] uppercase">
+                    topics update
+                  </p>
+                  <p className="mt-1 text-[15px] font-semibold">
+                    {updatedAt
+                      ? `${formatDisplayDateTime(updatedAt)} 更新`
+                      : "更新データなし"}
+                  </p>
+                </div>
+
+                <div className="text-sm font-semibold text-[#7084ad]">
+                  {kindDescLabel(activeKind)}
+                </div>
+              </div>
+
+              <div className="grid gap-6 lg:grid-cols-[1.55fr_0.75fr]">
+                <section>
+                  <div className="rounded-[12px] border border-[#d7e0ef] bg-white px-4 py-2">
+                    {subItems.length === 0 ? (
+                      <div className="px-1 py-10 text-center text-base font-bold text-[#526482]">
+                        このカテゴリのデータはまだありません。
+                      </div>
+                    ) : (
+                      subItems.map((item) => (
+                        <HeadlineRow
+                          key={item.id}
+                          item={item}
+                          sourceName={sourceNameById(sources, item.source_id)}
+                          onOpen={openModal}
+                        />
+                      ))
+                    )}
+                  </div>
+
+                  <div className="flex flex-wrap gap-6 px-1 pt-4 text-[18px] font-bold text-[#2a4fa3]">
+                    <Link
+                      to={`/items?kind=${activeKind}`}
+                      className="hover:underline"
+                    >
+                      もっと見る
+                    </Link>
+                    <Link
+                      to={`/items?kind=${activeKind}`}
+                      className="hover:underline"
+                    >
+                      トピックス一覧
+                    </Link>
+                  </div>
+                </section>
+
+                <aside>
+                  {featured ? (
+                    <button
+                      type="button"
+                      onClick={() => openModal(featured.id)}
+                      className="flex w-full flex-col rounded-[12px] border border-[#d7e0ef] bg-white text-left shadow-[0_8px_20px_rgba(27,52,120,0.06)] transition hover:-translate-y-0.5"
+                    >
+                      <div className="overflow-hidden border-b border-[#d7e0ef] bg-[#eef3fb]">
+                        <img
+                          src={cardImage(featured.image_url)}
+                          alt={featured.title}
+                          className="h-[190px] w-full object-cover"
+                        />
+                      </div>
+
+                      <div className="px-4 py-4">
+                        <span className="rounded-full border border-[#a9bbdc] bg-[#eef3fb] px-3 py-1 text-[11px] font-black tracking-[0.2em] text-[#2a4fa3]">
+                          {kindBadgeLabel(featured.kind)}
+                        </span>
+
+                        <h2 className="mt-3 text-[34px] font-black leading-tight text-[#16326e] lg:text-[26px]">
+                          {featured.title}
+                        </h2>
+
+                        <p className="mt-3 text-sm font-medium leading-7 text-[#4d5c7c]">
+                          {previewText(featured, 120)}
+                        </p>
+
+                        <div className="mt-4 space-y-1 text-sm font-semibold text-[#6b7ea6]">
+                          <p>{formatDisplayDateTime(featured.published_at)}</p>
+                          <p>{sourceNameById(sources, featured.source_id)}</p>
+                        </div>
+                      </div>
+                    </button>
+                  ) : null}
+                </aside>
+              </div>
+            </div>
+          </section>
+        </div>
+      </main>
+
+      <DetailModal
+        open={modalOpen}
+        item={detailItem}
+        source={detailSource}
+        loading={loadingDetail}
+        msg={detailMsg}
+        onClose={closeModal}
+      />
+    </>
   );
 }

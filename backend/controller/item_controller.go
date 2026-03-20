@@ -2,6 +2,7 @@ package controller
 
 import (
 	"net/http"
+	"strconv"
 
 	"coffee-spa/entity"
 	"coffee-spa/usecase"
@@ -23,6 +24,7 @@ func NewItemCtl(uc usecase.ItemUsecase) ItemCtl {
 type AddItemReq struct {
 	Title       string  `json:"title"`
 	Summary     *string `json:"summary"`
+	Body        *string `json:"body"`
 	URL         *string `json:"url"`
 	ImageURL    *string `json:"image_url"`
 	Kind        string  `json:"kind"`
@@ -33,6 +35,12 @@ type AddItemReq struct {
 // item単体のレスポンス。
 type ItemRes struct {
 	Item entity.Item `json:"item"`
+}
+
+// item詳細レスポンス。
+type ItemDetailRes struct {
+	Item   entity.Item   `json:"item"`
+	Source entity.Source `json:"source"`
 }
 
 // item一覧のレスポンス。
@@ -65,6 +73,24 @@ func (ctl ItemCtl) Top(c echo.Context) error {
 		Recipe: topItems.Recipe,
 		Deal:   topItems.Deal,
 		Shop:   topItems.Shop,
+	})
+}
+
+// GET /items/:idを処理。
+func (ctl ItemCtl) Detail(c echo.Context) error {
+	id, err := strconv.ParseInt(c.Param("id"), 10, 64)
+	if err != nil {
+		return writeErr(c, usecase.ErrInvalidRequest)
+	}
+
+	item, err := ctl.uc.Get(id)
+	if err != nil {
+		return writeErr(c, err)
+	}
+
+	return c.JSON(http.StatusOK, ItemDetailRes{
+		Item:   item,
+		Source: item.Source,
 	})
 }
 
@@ -108,6 +134,7 @@ func (ctl ItemCtl) Create(c echo.Context) error {
 	item, err := ctl.uc.Add(actor, usecase.AddItemIn{
 		Title:       req.Title,
 		Summary:     req.Summary,
+		Body:        req.Body,
 		URL:         req.URL,
 		ImageURL:    req.ImageURL,
 		Kind:        req.Kind,

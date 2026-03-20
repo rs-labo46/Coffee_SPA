@@ -13,7 +13,6 @@ import (
 
 func SeedDev(db *gorm.DB, adminEmail string, adminPassword string) error {
 	return db.Transaction(func(tx *gorm.DB) error {
-
 		if err := seedAdmin(tx, adminEmail, adminPassword); err != nil {
 			return err
 		}
@@ -85,6 +84,7 @@ func seedAdmin(db *gorm.DB, adminEmail string, adminPassword string) error {
 
 		return nil
 	}
+
 	upd := seedUserRow{
 		PassHash:      string(hash),
 		Role:          "admin",
@@ -282,6 +282,7 @@ func buildNewsItems(now time.Time, sourceID int64) []entity.Item {
 		items = append(items, entity.Item{
 			Title:       titles[i],
 			Summary:     strPtrIfNotEmpty(summaries[i]),
+			Body:        seedItemBody(string(entity.KindNews), titles[i], summaries[i]),
 			URL:         strPtrIfNotEmpty(urls[i]),
 			ImageURL:    strPtrIfNotEmpty(images[i]),
 			Kind:        string(entity.KindNews),
@@ -353,6 +354,7 @@ func buildRecipeItems(now time.Time, sourceID int64) []entity.Item {
 		items = append(items, entity.Item{
 			Title:       titles[i],
 			Summary:     strPtrIfNotEmpty(summaries[i]),
+			Body:        seedItemBody(string(entity.KindRecipe), titles[i], summaries[i]),
 			URL:         strPtrIfNotEmpty(urls[i]),
 			ImageURL:    strPtrIfNotEmpty(images[i]),
 			Kind:        string(entity.KindRecipe),
@@ -424,6 +426,7 @@ func buildDealItems(now time.Time, sourceID int64) []entity.Item {
 		items = append(items, entity.Item{
 			Title:       titles[i],
 			Summary:     strPtrIfNotEmpty(summaries[i]),
+			Body:        seedItemBody(string(entity.KindDeal), titles[i], summaries[i]),
 			URL:         strPtrIfNotEmpty(urls[i]),
 			ImageURL:    strPtrIfNotEmpty(images[i]),
 			Kind:        string(entity.KindDeal),
@@ -495,6 +498,7 @@ func buildShopItems(now time.Time, sourceID int64) []entity.Item {
 		items = append(items, entity.Item{
 			Title:       titles[i],
 			Summary:     strPtrIfNotEmpty(summaries[i]),
+			Body:        seedItemBody(string(entity.KindShop), titles[i], summaries[i]),
 			URL:         strPtrIfNotEmpty(urls[i]),
 			ImageURL:    strPtrIfNotEmpty(images[i]),
 			Kind:        string(entity.KindShop),
@@ -504,6 +508,67 @@ func buildShopItems(now time.Time, sourceID int64) []entity.Item {
 	}
 
 	return items
+}
+
+func seedItemBody(kind string, title string, summary string) *string {
+	body := fmt.Sprintf(
+		"%s\n\n%s\n\n%s\n\n%s",
+		title,
+		seedLead(kind, summary),
+		seedBackground(kind),
+		seedAction(kind),
+	)
+
+	return &body
+}
+
+func seedLead(kind string, summary string) string {
+	if summary != "" {
+		return summary
+	}
+
+	switch kind {
+	case "news":
+		return "市場の動き、焙煎、器具、運営の変化を短時間で把握できるように整理した本文ダミーです。"
+	case "recipe":
+		return "抽出量、湯温、時間、攪拌の考え方を初学者でも追いやすい文章に整えた本文ダミーです。"
+	case "deal":
+		return "値引き条件、対象商品、期限、併用可否を見落としにくい形でまとめる想定の本文ダミーです。"
+	case "shop":
+		return "店舗の特徴、雰囲気、メニュー、アクセス、利用シーンを簡潔に確認できる本文ダミーです。"
+	default:
+		return "記事本文のダミーテキストです。"
+	}
+}
+
+func seedBackground(kind string) string {
+	switch kind {
+	case "news":
+		return "この段落では、話題の背景と現場で何が起きているのかを説明します。豆の価格、客層の変化、抽出器具の選ばれ方など、店舗運営や日常の抽出に直結する観点で整理します。"
+	case "recipe":
+		return "この段落では、再現しやすさを重視して粉量、湯量、時間、味の狙いを順番に解説します。実務で言えば、手順書として他人に渡しても迷わない粒度を意識した本文です。"
+	case "deal":
+		return "この段落では、セール情報を使う側が判断に必要な条件を並べます。対象商品、値引率、送料、購入期限、まとめ買いの有利不利など、比較の基準を揃えて確認できます。"
+	case "shop":
+		return "この段落では、店舗を選ぶ理由につながる要素を整理します。立地、客席、提供スピード、看板メニュー、豆販売の有無など、実際に行く前に知りたい情報をまとめています。"
+	default:
+		return "背景説明用の本文です。"
+	}
+}
+
+func seedAction(kind string) string {
+	switch kind {
+	case "news":
+		return "最後に、注目ポイントと次に見るべき点をまとめます。利用者は、この情報を起点にさらに詳細記事や公式発表へ進める想定です。"
+	case "recipe":
+		return "最後に、味が薄いとき、苦いとき、香りが弱いときの調整方針を添えます。これにより、単なる読み物ではなく、次の一杯にすぐ反映できる記事になります。"
+	case "deal":
+		return "最後に、今買うべき人と見送ってよい人を分けて考えます。割引の数字だけでなく、自分の利用頻度や在庫状況まで踏まえて判断しやすくするためです。"
+	case "shop":
+		return "最後に、この店が向いている利用シーンをまとめます。作業向き、会話向き、テイクアウト向きなどの視点があると、店舗紹介が実際の行動につながりやすくなります。"
+	default:
+		return "締めくくりの本文です。"
+	}
 }
 
 func strPtrIfNotEmpty(v string) *string {

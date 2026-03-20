@@ -55,6 +55,7 @@ func (u *ItemUC) Add(actor Actor, input AddItemIn) (entity.Item, error) {
 	item, err := u.item.Create(entity.Item{
 		Title:       normalized.Title,
 		Summary:     normalized.Summary,
+		Body:        normalized.Body,
 		URL:         normalized.URL,
 		ImageURL:    normalized.ImageURL,
 		Kind:        normalized.Kind,
@@ -80,6 +81,19 @@ func (u *ItemUC) Add(actor Actor, input AddItemIn) (entity.Item, error) {
 		UA:       actor.UA,
 		MetaJSON: datatypes.JSON(b),
 	})
+	if err != nil {
+		return entity.Item{}, mapRepoErr(err)
+	}
+
+	return item, nil
+}
+
+func (u *ItemUC) Get(id int64) (entity.Item, error) {
+	if id <= 0 {
+		return entity.Item{}, ErrInvalidRequest
+	}
+
+	item, err := u.item.GetByID(id)
 	if err != nil {
 		return entity.Item{}, mapRepoErr(err)
 	}
@@ -121,6 +135,7 @@ func normalizeItemInput(input AddItemIn) AddItemIn {
 	input.Kind = strings.TrimSpace(input.Kind)
 	input.PublishedAt = strings.TrimSpace(input.PublishedAt)
 	input.Summary = trimNullableString(input.Summary)
+	input.Body = trimNullableString(input.Body)
 	input.URL = trimNullableString(input.URL)
 	input.ImageURL = trimNullableString(input.ImageURL)
 	return input

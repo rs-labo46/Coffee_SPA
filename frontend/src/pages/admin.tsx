@@ -16,6 +16,7 @@ type Item = {
   id: number;
   title: string;
   summary: string | null;
+  body: string | null;
   url: string | null;
   image_url: string | null;
   kind: ItemKind;
@@ -44,6 +45,7 @@ type SourceForm = {
 type ItemForm = {
   title: string;
   summary: string;
+  body: string;
   url: string;
   image_url: string;
   kind: ItemKind;
@@ -62,6 +64,7 @@ function newItemForm(): ItemForm {
   return {
     title: "",
     summary: "",
+    body: "",
     url: "",
     image_url: "",
     kind: "news",
@@ -319,6 +322,7 @@ export function AdminPage() {
       const body = {
         title: itemForm.title.trim(),
         summary: toNullableText(itemForm.summary),
+        body: toNullableText(itemForm.body),
         url: toNullableText(itemForm.url),
         image_url: toNullableText(itemForm.image_url),
         kind: itemForm.kind,
@@ -457,6 +461,19 @@ export function AdminPage() {
                     placeholder="短い説明"
                     rows={4}
                     className="w-full rounded-2xl border border-[#d8c8bc] bg-[#fffdfb] px-4 py-3.5 text-sm font-semibold text-[#4e342e] outline-none transition focus:border-[#8b5e3c] focus:ring-4 focus:ring-[#ead8ca]"
+                  />
+                </div>
+
+                <div className="md:col-span-2">
+                  <FieldLabel htmlFor="item-body" label="本文" />
+                  <textarea
+                    id="item-body"
+                    name="body"
+                    value={itemForm.body}
+                    onChange={onChangeItemForm}
+                    placeholder="詳細ページで表示する本文。段落を分けたい場合は空行を入れてください。"
+                    rows={8}
+                    className="w-full rounded-2xl border border-[#d8c8bc] bg-[#fffdfb] px-4 py-3.5 text-sm font-semibold leading-7 text-[#4e342e] outline-none transition focus:border-[#8b5e3c] focus:ring-4 focus:ring-[#ead8ca]"
                   />
                 </div>
 
