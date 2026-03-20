@@ -182,7 +182,7 @@ func writeErr(c echo.Context, err error) error {
 	case errors.Is(err, usecase.ErrConflict):
 		return c.JSON(http.StatusConflict, ErrRes{
 			Error:   "conflict",
-			Message: "resource state conflict",
+			Message: "すでに登録されています。",
 		})
 
 	case errors.As(err, &rl):

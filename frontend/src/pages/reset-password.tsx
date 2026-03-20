@@ -92,7 +92,7 @@ export function ResetPasswordPage() {
               <input
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                placeholder="new password"
+                placeholder="新しいパスワード"
                 type="password"
                 autoComplete="new-password"
                 className="w-full rounded-2xl border border-[#dccabc] bg-[#fffdfa] px-4 py-4 text-base font-semibold text-[#4e342e] outline-none transition placeholder:text-[#b09d90] focus:border-[#9c7257] focus:ring-4 focus:ring-[#ead8ca]"
@@ -106,7 +106,7 @@ export function ResetPasswordPage() {
               <input
                 value={confirmPassword}
                 onChange={(e) => setConfirmPassword(e.target.value)}
-                placeholder="confirm password"
+                placeholder="確認用パスワード"
                 type="password"
                 autoComplete="new-password"
                 className="w-full rounded-2xl border border-[#dccabc] bg-[#fffdfa] px-4 py-4 text-base font-semibold text-[#4e342e] outline-none transition placeholder:text-[#b09d90] focus:border-[#9c7257] focus:ring-4 focus:ring-[#ead8ca]"
