@@ -1,8 +1,14 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
-import { ApiError, api } from "../lib/api";
-
-type ItemKind = "news" | "recipe" | "deal" | "shop";
+import { api, toErrorMessage } from "../lib/api";
+import {
+  cardImage,
+  hasRef,
+  kindBadgeLabel,
+  kindTitleLabel,
+  type ItemKind,
+} from "../lib/item";
+import { formatDisplayDate } from "../lib/date";
 
 type Item = {
   id: number;
@@ -23,44 +29,6 @@ type TopRes = {
   shop: Item[];
 };
 
-function toErrorMessage(err: unknown, fallback: string): string {
-  if (err instanceof ApiError) {
-    return err.message;
-  }
-
-  return fallback;
-}
-
-function kindLabel(kind: ItemKind): string {
-  switch (kind) {
-    case "news":
-      return "NEWS";
-    case "recipe":
-      return "RECIPE";
-    case "deal":
-      return "DEAL";
-    case "shop":
-      return "SHOP";
-    default:
-      return "";
-  }
-}
-
-function sectionTitle(kind: ItemKind): string {
-  switch (kind) {
-    case "news":
-      return "ニュース";
-    case "recipe":
-      return "レシピ";
-    case "deal":
-      return "セール";
-    case "shop":
-      return "店舗";
-    default:
-      return "";
-  }
-}
-
 function sectionDesc(kind: ItemKind): string {
   switch (kind) {
     case "news":
@@ -80,34 +48,6 @@ function sectionListPath(kind: ItemKind): string {
   return `/items?kind=${kind}`;
 }
 
-function fmtDate(v: string): string {
-  const d = new Date(v);
-  if (Number.isNaN(d.getTime())) {
-    return "";
-  }
-
-  const y = d.getFullYear();
-  const m = String(d.getMonth() + 1).padStart(2, "0");
-  const day = String(d.getDate()).padStart(2, "0");
-  return `${y}/${m}/${day}`;
-}
-
-function cardImage(url: string | null): string {
-  if (url && url.trim() !== "") {
-    return url;
-  }
-
-  return "https://images.unsplash.com/photo-1509042239860-f550ce710b93?auto=format&fit=crop&w=1200&q=80";
-}
-
-function hasRef(url: string | null): boolean {
-  if (!url) {
-    return false;
-  }
-
-  return url.trim() !== "";
-}
-
 function ItemCard({ item }: { item: Item }) {
   const ref = hasRef(item.url);
 
@@ -124,11 +64,11 @@ function ItemCard({ item }: { item: Item }) {
       <div className="flex flex-1 flex-col px-6 py-5">
         <div className="mb-3 flex items-center gap-3">
           <span className="rounded-full bg-[#f4ebe3] px-3 py-1.5 text-[11px] font-bold tracking-[0.28em] text-[#7b523a]">
-            {kindLabel(item.kind)}
+            {kindBadgeLabel(item.kind)}
           </span>
 
           <span className="text-sm font-semibold text-[#8d8178]">
-            {fmtDate(item.published_at)}
+            {formatDisplayDate(item.published_at)}
           </span>
         </div>
 
@@ -160,15 +100,18 @@ function SectionBlock({ kind, items }: { kind: ItemKind; items: Item[] }) {
   const recent = items.slice(0, 3);
 
   return (
-    <section className="rounded-[36px] border border-[#e6d9ce] bg-[#fffdfa] px-6 py-7 shadow-[0_8px_24px_rgba(110,78,56,0.06)] md:px-8 md:py-8">
+    <section
+      id={kind}
+      className="rounded-[36px] border border-[#e6d9ce] bg-[#fffdfa] px-6 py-7 shadow-[0_8px_24px_rgba(110,78,56,0.06)] md:px-8 md:py-8"
+    >
       <div className="mb-6 flex flex-col gap-4 border-b border-[#eadfd5] pb-6 md:flex-row md:items-end md:justify-between">
         <div>
           <div className="mb-3 inline-flex rounded-full bg-[#f3e8de] px-4 py-2 text-xs font-bold tracking-[0.32em] text-[#7b523a]">
-            {kindLabel(kind)}
+            {kindBadgeLabel(kind)}
           </div>
 
           <h2 className="mb-2 text-[26px] font-black text-[#4e342e] md:text-[30px]">
-            {sectionTitle(kind)}
+            {kindTitleLabel(kind)}
           </h2>
 
           <p className="max-w-3xl text-sm font-semibold leading-7 text-[#766b63]">
@@ -202,7 +145,7 @@ function SectionBlock({ kind, items }: { kind: ItemKind; items: Item[] }) {
                   </span>
 
                   <span className="text-xs font-bold tracking-[0.18em] text-[#9b7a66] uppercase">
-                    {fmtDate(item.published_at)}
+                    {formatDisplayDate(item.published_at)}
                   </span>
                 </div>
 
@@ -319,21 +262,10 @@ export default function TopPage() {
           </div>
         </section>
 
-        <div id="news">
-          <SectionBlock kind="news" items={data.news} />
-        </div>
-
-        <div id="recipe">
-          <SectionBlock kind="recipe" items={data.recipe} />
-        </div>
-
-        <div id="deal">
-          <SectionBlock kind="deal" items={data.deal} />
-        </div>
-
-        <div id="shop">
-          <SectionBlock kind="shop" items={data.shop} />
-        </div>
+        <SectionBlock kind="news" items={data.news} />
+        <SectionBlock kind="recipe" items={data.recipe} />
+        <SectionBlock kind="deal" items={data.deal} />
+        <SectionBlock kind="shop" items={data.shop} />
       </div>
     </main>
   );

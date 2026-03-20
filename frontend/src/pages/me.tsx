@@ -1,20 +1,21 @@
+import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "../auth/auth";
-import { useState } from "react";
 
 export function MePage() {
   const { user, logout } = useAuth();
   const nav = useNavigate();
   const [loading, setLoading] = useState<boolean>(false);
+
   if (!user) {
     return <div>no user</div>;
   }
+
   const roleTone =
     user.role === "admin"
       ? "bg-[#f1e3d6] text-[#7b523a]"
       : "bg-[#ece6ff] text-[#6a55aa]";
 
-  //ログアウト
   async function onLogout() {
     setLoading(true);
 
@@ -22,7 +23,6 @@ export function MePage() {
       await logout();
       nav("/login");
     } finally {
-      //失敗してもボタン状態だけは戻します。
       setLoading(false);
     }
   }
@@ -41,37 +41,17 @@ export function MePage() {
                 <h1 className="mb-3 text-4xl font-black leading-tight md:text-5xl">
                   マイページ
                 </h1>
-
-                <p className="max-w-3xl text-base font-semibold leading-8 text-white/90 md:text-lg">
-                  アカウント状態の確認、権限の把握、次の操作への導線をまとめた画面です。
-                </p>
               </div>
 
               <div className="flex flex-wrap gap-3">
-                <Link
-                  to="/"
-                  className="inline-flex rounded-full border border-white/30 bg-white/10 px-5 py-3 text-sm font-bold text-white transition hover:bg-white/20"
-                >
-                  topへ
-                </Link>
-
                 {user.role === "admin" ? (
                   <Link
                     to="/admin"
                     className="inline-flex rounded-full border border-white/30 bg-white/10 px-5 py-3 text-sm font-bold text-white transition hover:bg-white/20"
                   >
-                    adminへ
+                    管理画面へ
                   </Link>
                 ) : null}
-
-                <button
-                  type="button"
-                  onClick={() => void onLogout()}
-                  disabled={loading}
-                  className="inline-flex rounded-full bg-[#4e342e] px-5 py-3 text-sm font-bold text-white transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60"
-                >
-                  {loading ? "ログアウト中..." : "logout"}
-                </button>
               </div>
             </div>
           </div>
@@ -94,75 +74,34 @@ export function MePage() {
                 <h2 className="mb-4 text-2xl font-black text-[#4e342e]">
                   アカウント概要
                 </h2>
+
                 <div className="grid gap-4 md:grid-cols-2">
                   <div className="rounded-[24px] bg-[#fcf6f0] px-5 py-5">
-                    <div className="rounded-[24px] bg-[#fcf6f0] px-5 py-5">
-                      <p className="mb-2 text-xs font-black tracking-[0.24em] text-[#a1775b] uppercase">
-                        token version
-                      </p>
-                      <p className="text-xl font-black text-[#4e342e]">
-                        {user.token_ver}
-                      </p>
-                    </div>
-
-                    <div className="rounded-[24px] bg-[#fcf6f0] px-5 py-5 md:col-span-2">
-                      <p className="mb-2 text-xs font-black tracking-[0.24em] text-[#a1775b] uppercase">
-                        email
-                      </p>
-                      <p className="break-all text-lg font-black text-[#4e342e]">
-                        {user.email}
-                      </p>
-                    </div>
-                  </div>
-                </div>
-              </section>
-
-              <section className="rounded-[30px] border border-[#eadfd5] bg-white px-6 py-6">
-                <p className="mb-3 text-sm font-black tracking-[0.24em] text-[#a1775b] uppercase">
-                  quick actions
-                </p>
-
-                <h2 className="mb-4 text-2xl font-black text-[#4e342e]">
-                  次にやること
-                </h2>
-
-                <div className="grid gap-4 md:grid-cols-3">
-                  <Link
-                    to="/"
-                    className="rounded-[24px] border border-[#eadfd5] bg-[#fcf8f4] px-5 py-5 transition hover:-translate-y-1 hover:shadow-[0_8px_20px_rgba(110,78,56,0.08)]"
-                  >
                     <p className="mb-2 text-xs font-black tracking-[0.24em] text-[#a1775b] uppercase">
-                      explore
+                      token version
                     </p>
-                    <h3 className="mb-2 text-lg font-black text-[#4e342e]">
-                      topへ戻る
-                    </h3>
-                  </Link>
-                  {user.role === "admin" ? (
-                    <Link
-                      to="/admin"
-                      className="rounded-[24px] border border-[#eadfd5] bg-[#fcf8f4] px-5 py-5 transition hover:-translate-y-1 hover:shadow-[0_8px_20px_rgba(110,78,56,0.08)]"
-                    >
-                      <p className="mb-2 text-xs font-black tracking-[0.24em] text-[#a1775b] uppercase">
-                        manage
-                      </p>
-                      <h3 className="mb-2 text-lg font-black text-[#4e342e]">
-                        管理画面へ進む
-                      </h3>
-                    </Link>
-                  ) : (
-                    <div className="rounded-[24px] border border-dashed border-[#e2d4c8] bg-[#fffdfa] px-5 py-5">
-                      <p className="mb-2 text-xs font-black tracking-[0.24em] text-[#a1775b] uppercase">
-                        role
-                      </p>
-                      <h3 className="mb-2 text-lg font-black text-[#4e342e]">
-                        一般ユーザー権限
-                      </h3>
-                      <p className="text-sm font-semibold leading-7 text-[#766b63]">
-                        管理画面はadminロールのユーザーのみ表示されます。
-                      </p>
-                    </div>
-                  )}
+                    <p className="text-xl font-black text-[#4e342e]">
+                      {user.token_ver}
+                    </p>
+                  </div>
+
+                  <div className="rounded-[24px] bg-[#fcf6f0] px-5 py-5">
+                    <p className="mb-2 text-xs font-black tracking-[0.24em] text-[#a1775b] uppercase">
+                      id
+                    </p>
+                    <p className="text-xl font-black text-[#4e342e]">
+                      {user.id}
+                    </p>
+                  </div>
+
+                  <div className="rounded-[24px] bg-[#fcf6f0] px-5 py-5 md:col-span-2">
+                    <p className="mb-2 text-xs font-black tracking-[0.24em] text-[#a1775b] uppercase">
+                      email
+                    </p>
+                    <p className="break-all text-lg font-black text-[#4e342e]">
+                      {user.email}
+                    </p>
+                  </div>
                 </div>
               </section>
             </div>
@@ -199,7 +138,7 @@ export function MePage() {
                       状態は{" "}
                       <span className="font-black text-[#4e342e]">
                         {user.email_verified ? "確認済み" : "未確認"}
-                      </span>
+                      </span>{" "}
                       です。
                     </p>
                   </div>

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { useAuth } from "../auth/auth";
 import { ApiError } from "../lib/api";
@@ -41,10 +41,19 @@ export function VerifyEmailPage() {
   const [msg, setMsg] = useState<string>("メール確認を進めています...");
   const [state, setState] = useState<VerifyState>("loading");
 
+  // 同じtokenで effect が二重実行されても、
+  // 1回しかAPIを叩かないようにする。
+  const startedRef = useRef<boolean>(false);
+
   const token = params.get("token") || "";
   const tone = useMemo(() => VerifyTone(state), [state]);
 
   useEffect(() => {
+    if (startedRef.current) {
+      return;
+    }
+    startedRef.current = true;
+
     async function run() {
       if (!token) {
         setState("error");
@@ -62,11 +71,13 @@ export function VerifyEmailPage() {
         );
       } catch (err: unknown) {
         setState("error");
+
         if (err instanceof ApiError) {
           setMsg(err.message);
-        } else {
-          setMsg("メール確認に失敗しました。時間をおいて再度お試しください。");
+          return;
         }
+
+        setMsg("メール確認に失敗しました。時間をおいて再度お試しください。");
       }
     }
 
@@ -74,10 +85,10 @@ export function VerifyEmailPage() {
   }, [token, verifyEmail]);
 
   return (
-    <main className="min-h-screen bg-[#f6f1eb] px-4 py-8 md:px-8 md:py-10">
-      <div className="mx-auto max-w-[960px]">
+    <main className="min-h-[calc(100vh-120px)] bg-[#f6f1eb] px-4 py-8 md:px-8 md:py-10">
+      <div className="mx-auto flex w-full max-w-[1280px] justify-center">
         <section
-          className={`mt-8 rounded-[32px] border px-6 py-7 shadow-[0_8px_24px_rgba(110,78,56,0.06)] md:px-8 ${tone.panelClass}`}
+          className={`w-full max-w-[760px] rounded-[32px] border px-6 py-7 shadow-[0_8px_24px_rgba(110,78,56,0.06)] md:px-8 ${tone.panelClass}`}
         >
           <div className="mb-4 flex flex-wrap items-center gap-3">
             <span

@@ -1,8 +1,15 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
-import { ApiError, api } from "../lib/api";
-
-type ItemKind = "news" | "recipe" | "deal" | "shop";
+import { api, toErrorMessage } from "../lib/api";
+import {
+  cardImage,
+  hasRef,
+  isItemKind,
+  kindBadgeLabel,
+  kindTitleLabel,
+  type ItemKind,
+} from "../lib/item";
+import { formatDisplayDate } from "../lib/date";
 
 type Item = {
   id: number;
@@ -20,55 +27,6 @@ type ItemListRes = {
   items: Item[];
 };
 
-function toErrorMessage(err: unknown, fallback: string): string {
-  if (err instanceof ApiError) {
-    return err.message;
-  }
-  return fallback;
-}
-
-function isItemKind(v: string | null): v is ItemKind {
-  return v === "news" || v === "recipe" || v === "deal" || v === "shop";
-}
-
-function kindLabel(kind: ItemKind): string {
-  switch (kind) {
-    case "news":
-      return "ニュース";
-    case "recipe":
-      return "レシピ";
-    case "deal":
-      return "セール";
-    case "shop":
-      return "店舗";
-    default:
-      return "";
-  }
-}
-
-function fmtDate(v: string): string {
-  const d = new Date(v);
-  if (Number.isNaN(d.getTime())) {
-    return "";
-  }
-
-  const y = d.getFullYear();
-  const m = String(d.getMonth() + 1).padStart(2, "0");
-  const day = String(d.getDate()).padStart(2, "0");
-  return `${y}/${m}/${day}`;
-}
-
-function cardImage(url: string | null): string {
-  if (url && url.trim() !== "") {
-    return url;
-  }
-  return "https://images.unsplash.com/photo-1509042239860-f550ce710b93?auto=format&fit=crop&w=1200&q=80";
-}
-
-function hasRef(url: string | null): boolean {
-  return !!url && url.trim() !== "";
-}
-
 function ItemCard({ item }: { item: Item }) {
   return (
     <article className="group flex h-full flex-col overflow-hidden rounded-[28px] border border-[#e5d7cb] bg-white shadow-[0_6px_20px_rgba(93,64,55,0.08)]">
@@ -83,11 +41,11 @@ function ItemCard({ item }: { item: Item }) {
       <div className="flex flex-1 flex-col px-6 py-5">
         <div className="mb-3 flex items-center gap-3">
           <span className="rounded-full bg-[#f4ebe3] px-3 py-1.5 text-[11px] font-bold tracking-[0.28em] text-[#7b523a]">
-            {item.kind.toUpperCase()}
+            {kindBadgeLabel(item.kind)}
           </span>
 
           <span className="text-sm font-semibold text-[#8d8178]">
-            {fmtDate(item.published_at)}
+            {formatDisplayDate(item.published_at)}
           </span>
         </div>
 
@@ -126,7 +84,9 @@ export function ItemsPage() {
       try {
         const res = await api<ItemListRes>(
           `/items?kind=${kind}&limit=10&offset=0`,
-          { method: "GET" },
+          {
+            method: "GET",
+          },
         );
 
         setItems(res?.items ?? []);
@@ -179,7 +139,7 @@ export function ItemsPage() {
           </p>
 
           <h1 className="mb-3 text-3xl font-black text-[#4e342e] md:text-5xl">
-            {kindLabel(kind)}一覧
+            {kindTitleLabel(kind)}一覧
           </h1>
 
           <div className="mt-6 flex flex-wrap gap-3">

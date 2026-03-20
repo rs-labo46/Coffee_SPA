@@ -2,23 +2,108 @@ package db
 
 import (
 	"fmt"
+	"strings"
 	"time"
 
 	"coffee-spa/entity"
 
+	"golang.org/x/crypto/bcrypt"
 	"gorm.io/gorm"
 )
 
-func SeedDev(db *gorm.DB) error {
-	if err := seedSources(db); err != nil {
+func SeedDev(db *gorm.DB, adminEmail string, adminPassword string) error {
+	return db.Transaction(func(tx *gorm.DB) error {
+
+		if err := seedAdmin(tx, adminEmail, adminPassword); err != nil {
+			return err
+		}
+
+		if err := seedSources(tx); err != nil {
+			return err
+		}
+
+		if err := seedItems(tx); err != nil {
+			return err
+		}
+
+		return nil
+	})
+}
+
+type seedUserRow struct {
+	Email         string    `gorm:"column:email"`
+	PassHash      string    `gorm:"column:pass_hash"`
+	Role          string    `gorm:"column:role"`
+	TokenVer      int       `gorm:"column:token_ver"`
+	EmailVerified bool      `gorm:"column:email_verified"`
+	CreatedAt     time.Time `gorm:"column:created_at"`
+	UpdatedAt     time.Time `gorm:"column:updated_at"`
+}
+
+// adminを作る。
+// 既に同じメールがあれば、dev用としてadmin / verified / passwordを上書きする。
+func seedAdmin(db *gorm.DB, adminEmail string, adminPassword string) error {
+	email := normalizeEmail(adminEmail)
+	pw := strings.TrimSpace(adminPassword)
+
+	if email == "" {
+		return fmt.Errorf("seed admin email is empty")
+	}
+
+	if pw == "" {
+		return fmt.Errorf("seed admin password is empty")
+	}
+
+	hash, err := bcrypt.GenerateFromPassword([]byte(pw), bcrypt.DefaultCost)
+	if err != nil {
 		return err
 	}
 
-	if err := seedItems(db); err != nil {
+	now := time.Now()
+
+	var count int64
+	if err := db.Table("users").
+		Where("email = ?", email).
+		Count(&count).Error; err != nil {
+		return err
+	}
+
+	if count == 0 {
+		row := seedUserRow{
+			Email:         email,
+			PassHash:      string(hash),
+			Role:          "admin",
+			TokenVer:      1,
+			EmailVerified: true,
+			CreatedAt:     now,
+			UpdatedAt:     now,
+		}
+
+		if err := db.Table("users").Create(&row).Error; err != nil {
+			return err
+		}
+
+		return nil
+	}
+	upd := seedUserRow{
+		PassHash:      string(hash),
+		Role:          "admin",
+		TokenVer:      1,
+		EmailVerified: true,
+		UpdatedAt:     now,
+	}
+
+	if err := db.Table("users").
+		Where("email = ?", email).
+		Updates(&upd).Error; err != nil {
 		return err
 	}
 
 	return nil
+}
+
+func normalizeEmail(v string) string {
+	return strings.ToLower(strings.TrimSpace(v))
 }
 
 func seedSources(db *gorm.DB) error {
@@ -60,15 +145,6 @@ func seedSources(db *gorm.DB) error {
 }
 
 func seedItems(db *gorm.DB) error {
-	var count int64
-	if err := db.Model(&entity.Item{}).Count(&count).Error; err != nil {
-		return err
-	}
-
-	if count > 0 {
-		return nil
-	}
-
 	var sources []entity.Source
 	if err := db.Order("id asc").Find(&sources).Error; err != nil {
 		return err
@@ -80,16 +156,52 @@ func seedItems(db *gorm.DB) error {
 
 	now := time.Now()
 
-	items := make([]entity.Item, 0, 40)
+	type seedGroup struct {
+		kind     string
+		sourceID int64
+		build    func(time.Time, int64) []entity.Item
+	}
 
-	items = append(items, buildNewsItems(now, sources[0].ID)...)
-	items = append(items, buildRecipeItems(now, sources[1%len(sources)].ID)...)
-	items = append(items, buildDealItems(now, sources[2%len(sources)].ID)...)
-	items = append(items, buildShopItems(now, sources[3%len(sources)].ID)...)
+	groups := []seedGroup{
+		{
+			kind:     string(entity.KindNews),
+			sourceID: sources[0%len(sources)].ID,
+			build:    buildNewsItems,
+		},
+		{
+			kind:     string(entity.KindRecipe),
+			sourceID: sources[1%len(sources)].ID,
+			build:    buildRecipeItems,
+		},
+		{
+			kind:     string(entity.KindDeal),
+			sourceID: sources[2%len(sources)].ID,
+			build:    buildDealItems,
+		},
+		{
+			kind:     string(entity.KindShop),
+			sourceID: sources[3%len(sources)].ID,
+			build:    buildShopItems,
+		},
+	}
 
-	for _, item := range items {
-		if err := db.Create(&item).Error; err != nil {
+	for _, g := range groups {
+		var count int64
+		if err := db.Model(&entity.Item{}).
+			Where("kind = ?", g.kind).
+			Count(&count).Error; err != nil {
 			return err
+		}
+
+		if count > 0 {
+			continue
+		}
+
+		items := g.build(now, g.sourceID)
+		for _, item := range items {
+			if err := db.Create(&item).Error; err != nil {
+				return err
+			}
 		}
 	}
 
@@ -121,6 +233,7 @@ func buildNewsItems(now time.Time, sourceID int64) []entity.Item {
 		"リユースカップ運用を進める店舗が都心部で増えている",
 		"ミルの粒度安定性を重視した家庭用モデルが人気",
 		"豆価格の変動を受けて、定番ブレンドの構成比を調整する店舗が増加",
+		"抽出ログを活用した接客改善を進めるカフェが増えている",
 	}
 
 	summaries := []string{
@@ -133,6 +246,7 @@ func buildNewsItems(now time.Time, sourceID int64) []entity.Item {
 		"実店舗での体験価値と環境配慮を両立する取り組みとして注目されています。",
 		"刃の違い、回転数、清掃性など、比較軸が一般消費者にも広がっています。",
 		"",
+		"会員データや抽出記録をもとに、提案精度を上げる店舗運営が注目されています。",
 	}
 
 	images := []string{
@@ -162,7 +276,6 @@ func buildNewsItems(now time.Time, sourceID int64) []entity.Item {
 	}
 
 	n := min4(len(titles), len(summaries), len(images), len(urls))
-
 	items := make([]entity.Item, 0, n)
 
 	for i := 0; i < n; i++ {
@@ -191,6 +304,7 @@ func buildRecipeItems(now time.Time, sourceID int64) []entity.Item {
 		"少量抽出でも味を薄くしにくい一人分レシピ",
 		"来客時に安定して淹れやすい二杯取りの基準",
 		"牛乳に合わせやすい深煎り向けの濃い抽出レシピ",
+		"蒸らしを長めに取って香りを立たせる週末向けレシピ",
 	}
 
 	summaries := []string{
@@ -203,6 +317,7 @@ func buildRecipeItems(now time.Time, sourceID int64) []entity.Item {
 		"",
 		"抽出量が増えた時に味がぶれやすい人向けです。",
 		"",
+		"蒸らし時間を少し長めに取り、香りと甘さの立ち上がりを狙う想定です。",
 	}
 
 	images := []string{
@@ -232,7 +347,6 @@ func buildRecipeItems(now time.Time, sourceID int64) []entity.Item {
 	}
 
 	n := min4(len(titles), len(summaries), len(images), len(urls))
-
 	items := make([]entity.Item, 0, n)
 
 	for i := 0; i < n; i++ {
@@ -241,7 +355,7 @@ func buildRecipeItems(now time.Time, sourceID int64) []entity.Item {
 			Summary:     strPtrIfNotEmpty(summaries[i]),
 			URL:         strPtrIfNotEmpty(urls[i]),
 			ImageURL:    strPtrIfNotEmpty(images[i]),
-			Kind:        string(entity.KindNews),
+			Kind:        string(entity.KindRecipe),
 			SourceID:    sourceID,
 			PublishedAt: now.Add(time.Duration(-(i + 1)) * 6 * time.Hour),
 		})
@@ -261,6 +375,7 @@ func buildDealItems(now time.Time, sourceID int64) []entity.Item {
 		"アイスコーヒー器具の季節セール",
 		"店舗受け取り限定の豆セット特価",
 		"レビュー投稿で次回使えるクーポン配布",
+		"抽出スターターセットの期間限定セール",
 	}
 
 	summaries := []string{
@@ -273,6 +388,7 @@ func buildDealItems(now time.Time, sourceID int64) []entity.Item {
 		"季節キャンペーンの短い説明文です。",
 		"",
 		"",
+		"初級者向け器具をまとめた訴求の見え方確認用です。",
 	}
 
 	images := []string{
@@ -302,7 +418,6 @@ func buildDealItems(now time.Time, sourceID int64) []entity.Item {
 	}
 
 	n := min4(len(titles), len(summaries), len(images), len(urls))
-
 	items := make([]entity.Item, 0, n)
 
 	for i := 0; i < n; i++ {
@@ -311,7 +426,7 @@ func buildDealItems(now time.Time, sourceID int64) []entity.Item {
 			Summary:     strPtrIfNotEmpty(summaries[i]),
 			URL:         strPtrIfNotEmpty(urls[i]),
 			ImageURL:    strPtrIfNotEmpty(images[i]),
-			Kind:        string(entity.KindNews),
+			Kind:        string(entity.KindDeal),
 			SourceID:    sourceID,
 			PublishedAt: now.Add(time.Duration(-(i + 1)) * 6 * time.Hour),
 		})
@@ -331,6 +446,7 @@ func buildShopItems(now time.Time, sourceID int64) []entity.Item {
 		"テイクアウト需要に強いスタンド型ショップ",
 		"焙煎体験イベントを行う店舗の紹介",
 		"地方ロースターの豆を週替わりで出す店",
+		"駅近で朝の回転が速いエスプレッソバーの紹介",
 	}
 
 	summaries := []string{
@@ -343,6 +459,7 @@ func buildShopItems(now time.Time, sourceID int64) []entity.Item {
 		"",
 		"イベント性のある店舗情報が混ざった時の見え方確認です。",
 		"",
+		"朝の通勤導線に入りやすい立地と提供スピードを想定した説明です。",
 	}
 
 	images := []string{
@@ -372,7 +489,6 @@ func buildShopItems(now time.Time, sourceID int64) []entity.Item {
 	}
 
 	n := min4(len(titles), len(summaries), len(images), len(urls))
-
 	items := make([]entity.Item, 0, n)
 
 	for i := 0; i < n; i++ {
@@ -381,7 +497,7 @@ func buildShopItems(now time.Time, sourceID int64) []entity.Item {
 			Summary:     strPtrIfNotEmpty(summaries[i]),
 			URL:         strPtrIfNotEmpty(urls[i]),
 			ImageURL:    strPtrIfNotEmpty(images[i]),
-			Kind:        string(entity.KindNews),
+			Kind:        string(entity.KindShop),
 			SourceID:    sourceID,
 			PublishedAt: now.Add(time.Duration(-(i + 1)) * 6 * time.Hour),
 		})

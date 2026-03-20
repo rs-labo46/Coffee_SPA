@@ -36,7 +36,11 @@ func main() {
 	}
 
 	if c.GoEnv == "dev" {
-		if err := db.SeedDev(d.G); err != nil {
+		if err := db.SeedDev(
+			d.G,
+			c.SeedAdminEmail,
+			c.SeedAdminPassword,
+		); err != nil {
 			log.Fatal(err)
 		}
 	}

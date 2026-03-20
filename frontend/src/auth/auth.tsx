@@ -50,6 +50,8 @@ type AuthCtx = {
   signup: (email: string, password: string) => Promise<string>;
   verifyEmail: (token: string) => Promise<void>;
   resendVerify: (email: string) => Promise<string>;
+  forgotPassword: (email: string) => Promise<string>;
+  resetPassword: (token: string, newPassword: string) => Promise<void>;
   login: (email: string, password: string) => Promise<void>;
   refresh: () => Promise<boolean>;
   logout: () => Promise<void>;
@@ -90,6 +92,25 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     });
 
     return `${email} 宛に確認メールを再送しました。`;
+  }
+
+  async function forgotPassword(email: string): Promise<string> {
+    await api<void>("/auth/password/forgot", {
+      method: "POST",
+      body: { email },
+    });
+
+    return "入力したメールアドレス宛に、再設定案内を送信しました。";
+  }
+
+  async function resetPassword(
+    token: string,
+    newPassword: string,
+  ): Promise<void> {
+    await api<void>("/auth/password/reset", {
+      method: "POST",
+      body: { token, new_password: newPassword },
+    });
   }
 
   async function loadMe(): Promise<void> {
@@ -182,7 +203,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           }
         }
 
-        // csrf_token cookie がある時だけ refresh を試す
         const csrf = getCookie("csrf_token");
         if (!csrf) {
           setUser(null);
@@ -205,6 +225,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       signup,
       verifyEmail,
       resendVerify,
+      forgotPassword,
+      resetPassword,
       login,
       refresh,
       logout,

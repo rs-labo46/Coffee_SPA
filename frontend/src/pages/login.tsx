@@ -44,55 +44,8 @@ export function LoginPage() {
 
   return (
     <main className="min-h-[calc(100vh-120px)] bg-[#f6f1eb] px-4 py-8 md:px-8 md:py-10">
-      <div className="mx-auto grid max-w-[1280px] gap-6 lg:grid-cols-[1.05fr_0.95fr]">
-        <section className="overflow-hidden rounded-[36px] border border-[#e6d9ce] bg-[#fffdfa] shadow-[0_10px_28px_rgba(110,78,56,0.08)]">
-          <div className="border-b border-[#eadfd5] bg-gradient-to-r from-[#6f4e37] via-[#8f6a50] to-[#c7ab95] px-8 py-10 text-white md:px-10">
-            <p className="mb-3 text-sm font-black tracking-[0.32em] text-white/80 uppercase">
-              login
-            </p>
-
-            <h1 className="mb-4 text-4xl font-black leading-tight md:text-5xl">
-              Coffee SPAへ
-              <br />
-              ログイン
-            </h1>
-          </div>
-
-          <div className="grid gap-6 px-8 py-8 md:px-10 md:py-10">
-            <div className="grid gap-4 md:grid-cols-3">
-              <div className="rounded-[30px] bg-[#fcf6f0] px-6 py-6">
-                <p className="mb-3 text-sm font-black tracking-[0.24em] text-[#a1775b] uppercase">
-                  quick links
-                </p>
-
-                <div className="flex flex-wrap gap-3">
-                  <Link
-                    to="/"
-                    className="inline-flex rounded-full border border-[#d9c6b8] bg-white px-5 py-3 text-sm font-bold text-[#7b523a] transition hover:bg-[#f7efe8]"
-                  >
-                    topへ戻る
-                  </Link>
-
-                  <Link
-                    to="/signup"
-                    className="inline-flex rounded-full border border-[#d9c6b8] bg-white px-5 py-3 text-sm font-bold text-[#7b523a] transition hover:bg-[#f7efe8]"
-                  >
-                    新規登録へ
-                  </Link>
-
-                  <Link
-                    to="/resend-verify"
-                    className="inline-flex rounded-full border border-[#d9c6b8] bg-white px-5 py-3 text-sm font-bold text-[#7b523a] transition hover:bg-[#f7efe8]"
-                  >
-                    確認メール再送へ
-                  </Link>
-                </div>
-              </div>
-            </div>
-          </div>
-        </section>
-
-        <section className="rounded-[36px] border border-[#e6d9ce] bg-white px-6 py-8 shadow-[0_10px_28px_rgba(110,78,56,0.08)] md:px-8 md:py-10">
+      <div className="mx-auto flex w-full max-w-[1280px] justify-center">
+        <section className="w-full max-w-[760px] rounded-[36px] border border-[#e6d9ce] bg-white px-6 py-8 shadow-[0_10px_28px_rgba(110,78,56,0.08)] md:px-8 md:py-10">
           <div className="mb-8">
             <p className="mb-3 text-sm font-black tracking-[0.28em] text-[#a1775b] uppercase">
               account access
@@ -158,10 +111,6 @@ export function LoginPage() {
               support
             </p>
 
-            <p className="text-sm font-semibold leading-7 text-[#766b63]">
-              ログインできない場合は、メール確認が完了しているか確認してください。
-            </p>
-
             <div className="flex flex-wrap gap-3">
               <Link
                 to="/signup"
@@ -171,10 +120,10 @@ export function LoginPage() {
               </Link>
 
               <Link
-                to="/resend-verify"
+                to="/forgot-password"
                 className="inline-flex rounded-full border border-[#d9c6b8] bg-white px-4 py-2.5 text-sm font-bold text-[#7b523a] transition hover:bg-[#f7efe8]"
               >
-                確認メールを再送
+                パスワードを忘れた
               </Link>
             </div>
           </div>

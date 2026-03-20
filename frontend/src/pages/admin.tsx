@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
-import { ApiError, api } from "../lib/api";
-import { japanDateTime } from "../lib/date";
+import { api, toErrorMessage } from "../lib/api";
+import { formatDisplayDateTime, formatTokyoDateTimeInput } from "../lib/date";
 
 type ItemKind = "news" | "recipe" | "deal" | "shop";
 
@@ -35,10 +35,12 @@ type SourceRes = {
 type ItemRes = {
   item: Item;
 };
+
 type SourceForm = {
   name: string;
   site_url: string;
 };
+
 type ItemForm = {
   title: string;
   summary: string;
@@ -55,6 +57,7 @@ function newSourceForm(): SourceForm {
     site_url: "",
   };
 }
+
 function newItemForm(): ItemForm {
   return {
     title: "",
@@ -66,6 +69,7 @@ function newItemForm(): ItemForm {
     published_at: "",
   };
 }
+
 function toNullableText(value: string): string | null {
   const trimmed = value.trim();
 
@@ -75,30 +79,29 @@ function toNullableText(value: string): string | null {
 
   return trimmed;
 }
+
 function toApiDateTime(value: string): string {
   if (!value) {
     return "";
   }
+
   return `${value}:00+09:00`;
 }
 
-function toErrorMessage(err: unknown, fallback: string): string {
-  if (err instanceof ApiError) {
-    return err.message;
-  }
-
-  return fallback;
-}
 function SectionTitle({ title, sub }: { title: string; sub: string }) {
   return (
-    <div className="mb-4 border-b border-[#d9c7b8] pb-3">
-      <h2 className="text-xl font-bold tracking-wide text-[#4f2f1d]">
-        {title}
-      </h2>
-      <p className="mt-1 text-sm text-stone-600">{sub}</p>
+    <div className="mb-5 border-b border-[#eadfd5] pb-4">
+      <p className="mb-2 text-xs font-black uppercase tracking-[0.28em] text-[#a1775b]">
+        admin form
+      </p>
+      <h2 className="text-2xl font-black text-[#4e342e]">{title}</h2>
+      <p className="mt-2 text-sm font-semibold leading-7 text-[#766b63]">
+        {sub}
+      </p>
     </div>
   );
 }
+
 function FieldLabel({
   htmlFor,
   label,
@@ -111,11 +114,47 @@ function FieldLabel({
   return (
     <label
       htmlFor={htmlFor}
-      className="mb-1 block text-sm font-semibold text-stone-700"
+      className="mb-2 block text-sm font-black tracking-[0.06em] text-[#5f4a40]"
     >
       {label}
-      {required ? <span className="ml-1 text-red-700">*</span> : null}
+      {required ? <span className="ml-1 text-[#a23c2e]">*</span> : null}
     </label>
+  );
+}
+
+function NavPill({ to, label }: { to: string; label: string }) {
+  return (
+    <Link
+      to={to}
+      className="inline-flex min-h-11 items-center justify-center rounded-full border border-[#d9c7b8] bg-white px-5 py-2.5 text-sm font-bold text-[#5a3825] transition hover:bg-[#f5ece5]"
+    >
+      {label}
+    </Link>
+  );
+}
+
+function SubmitBtn({
+  label,
+  loadingLabel,
+  loading,
+  tone = "dark",
+}: {
+  label: string;
+  loadingLabel: string;
+  loading: boolean;
+  tone?: "dark" | "mid";
+}) {
+  const cls =
+    tone === "dark" ? "bg-[#5a3825] text-white" : "bg-[#8b5e3c] text-white";
+
+  return (
+    <button
+      type="submit"
+      disabled={loading}
+      className={`inline-flex min-h-12 min-w-[220px] items-center justify-center rounded-2xl px-6 py-3 text-sm font-bold transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60 ${cls}`}
+    >
+      {loading ? loadingLabel : label}
+    </button>
   );
 }
 
@@ -130,6 +169,7 @@ export function AdminPage() {
   const [savingItem, setSavingItem] = useState<boolean>(false);
   const [itemMsg, setItemMsg] = useState<string>("");
   const [createdItem, setCreatedItem] = useState<Item | null>(null);
+
   const firstSourceId = useMemo<string>(() => {
     if (sources.length === 0) {
       return "";
@@ -138,7 +178,6 @@ export function AdminPage() {
     return String(sources[0].id);
   }, [sources]);
 
-  // source一覧を取得する関数。
   async function loadSources(): Promise<void> {
     setLoadingSources(true);
     setSourcesMsg("");
@@ -156,7 +195,6 @@ export function AdminPage() {
 
       setSources(res.sources);
 
-      //item formのsource_idが未選択なら、先頭を自動セットする。
       setItemForm((prev) => {
         if (prev.source_id) {
           return prev;
@@ -179,7 +217,6 @@ export function AdminPage() {
     }
   }
 
-  // 初回表示時に一覧を取得する。
   useEffect(() => {
     void loadSources();
   }, []);
@@ -202,7 +239,6 @@ export function AdminPage() {
     }));
   }
 
-  //itemformの更新関数。
   function onChangeItemForm(
     e:
       | React.ChangeEvent<HTMLInputElement>
@@ -216,6 +252,7 @@ export function AdminPage() {
       [name]: value,
     }));
   }
+
   async function onSubmitSource(
     e: React.FormEvent<HTMLFormElement>,
   ): Promise<void> {
@@ -315,40 +352,36 @@ export function AdminPage() {
   }
 
   return (
-    <div className="min-h-screen bg-[#f7f3ee] px-4 py-8 text-stone-800">
-      <div className="mx-auto max-w-6xl">
-        <header className="mb-8 overflow-hidden rounded-3xl border border-[#d9c7b8] bg-white shadow-sm">
-          <div className="border-b border-[#e9ddd3] bg-gradient-to-r from-[#5a3825] via-[#7a5239] to-[#a67c52] px-6 py-8 text-white">
-            <p className="text-sm font-semibold uppercase tracking-[0.2em]">
+    <main className="min-h-[calc(100vh-120px)] bg-[#f6f1eb] px-4 py-8 text-stone-800 md:px-8 md:py-10">
+      <div className="mx-auto max-w-[1280px]">
+        <header className="mb-8 overflow-hidden rounded-[36px] border border-[#e6d9ce] bg-white shadow-[0_10px_28px_rgba(110,78,56,0.08)]">
+          <div className="border-b border-[#e9ddd3] bg-gradient-to-r from-[#5a3825] via-[#7a5239] to-[#a67c52] px-6 py-8 text-white md:px-8 md:py-9">
+            <p className="text-sm font-black uppercase tracking-[0.26em] text-white/80">
               Coffee SPA Admin
             </p>
-            <h1 className="mt-2 text-3xl font-bold">管理画面</h1>
+            <h1 className="mt-2 text-3xl font-black md:text-4xl">管理画面</h1>
           </div>
 
-          <div className="flex flex-wrap gap-3 px-6 py-4 text-sm">
-            <Link
-              to="/"
-              className="rounded-full border border-[#ccb39e] bg-[#fffaf6] px-4 py-2 font-medium text-[#5a3825] transition hover:bg-[#f5ece5]"
-            >
-              公開トップへ
-            </Link>
+          <div className="px-6 py-5 md:px-8">
+            <div className="rounded-[28px] border border-[#eadfd5] bg-[#fcf8f4] px-4 py-4 md:px-6">
+              <p className="mb-3 text-center text-xs font-black uppercase tracking-[0.28em] text-[#a1775b]">
+                quick action
+              </p>
 
-            <Link
-              to="/me"
-              className="rounded-full border border-[#ccb39e] bg-[#fffaf6] px-4 py-2 font-medium text-[#5a3825] transition hover:bg-[#f5ece5]"
-            >
-              me へ
-            </Link>
+              <div className="flex flex-wrap items-center justify-center gap-3">
+                <NavPill to="/" label="公開トップへ" />
+              </div>
+            </div>
           </div>
         </header>
 
-        <div className="grid gap-6 lg:grid-cols-[1.1fr_1.4fr]">
-          <section className="rounded-3xl border border-[#d9c7b8] bg-white p-6 shadow-sm">
-            <SectionTitle title="Source 登録" sub="出典元を作成" />
+        <div className="grid gap-6 lg:grid-cols-[0.92fr_1.08fr]">
+          <section className="rounded-[32px] border border-[#e6d9ce] bg-white p-6 shadow-[0_10px_28px_rgba(110,78,56,0.06)] md:p-7">
+            <SectionTitle title="Source 登録" sub="出典元を登録します。" />
 
             <form
               onSubmit={(e) => void onSubmitSource(e)}
-              className="space-y-4"
+              className="space-y-5"
             >
               <div>
                 <FieldLabel htmlFor="source-name" label="Source名" required />
@@ -359,7 +392,7 @@ export function AdminPage() {
                   value={sourceForm.name}
                   onChange={onChangeSourceForm}
                   placeholder="例: Coffee Daily"
-                  className="w-full rounded-2xl border border-[#d8c8bc] bg-[#fffdfb] px-4 py-3 text-sm outline-none ring-0 transition focus:border-[#8b5e3c]"
+                  className="w-full rounded-2xl border border-[#d8c8bc] bg-[#fffdfb] px-4 py-3.5 text-sm font-semibold text-[#4e342e] outline-none transition focus:border-[#8b5e3c] focus:ring-4 focus:ring-[#ead8ca]"
                 />
               </div>
 
@@ -372,33 +405,34 @@ export function AdminPage() {
                   value={sourceForm.site_url}
                   onChange={onChangeSourceForm}
                   placeholder="https://example.com"
-                  className="w-full rounded-2xl border border-[#d8c8bc] bg-[#fffdfb] px-4 py-3 text-sm outline-none ring-0 transition focus:border-[#8b5e3c]"
+                  className="w-full rounded-2xl border border-[#d8c8bc] bg-[#fffdfb] px-4 py-3.5 text-sm font-semibold text-[#4e342e] outline-none transition focus:border-[#8b5e3c] focus:ring-4 focus:ring-[#ead8ca]"
                 />
               </div>
 
-              <button
-                type="submit"
-                disabled={savingSource}
-                className="inline-flex rounded-2xl bg-[#5a3825] px-5 py-3 text-sm font-semibold text-white transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60"
-              >
-                {savingSource ? "作成中..." : "Sourceを作成"}
-              </button>
+              <div className="flex justify-center pt-1">
+                <SubmitBtn
+                  label="Sourceを作成"
+                  loadingLabel="作成中..."
+                  loading={savingSource}
+                  tone="dark"
+                />
+              </div>
             </form>
 
             {sourceMsg ? (
-              <p className="mt-4 rounded-2xl bg-[#f8efe7] px-4 py-3 text-sm text-[#5a3825]">
+              <p className="mt-5 rounded-[22px] border border-[#ead9cd] bg-[#f8efe7] px-4 py-3 text-sm font-bold text-[#5a3825]">
                 {sourceMsg}
               </p>
             ) : null}
           </section>
 
-          <section className="rounded-3xl border border-[#d9c7b8] bg-white p-6 shadow-sm">
+          <section className="rounded-[32px] border border-[#e6d9ce] bg-white p-6 shadow-[0_10px_28px_rgba(110,78,56,0.06)] md:p-7">
             <SectionTitle
               title="Item 登録"
-              sub="ニュース、レシピ、セール、店舗情報を登録。"
+              sub="ニュース、レシピ、セール、店舗情報を登録します。"
             />
 
-            <form onSubmit={(e) => void onSubmitItem(e)} className="space-y-4">
+            <form onSubmit={(e) => void onSubmitItem(e)} className="space-y-5">
               <div className="grid gap-4 md:grid-cols-2">
                 <div className="md:col-span-2">
                   <FieldLabel htmlFor="item-title" label="タイトル" required />
@@ -409,7 +443,7 @@ export function AdminPage() {
                     value={itemForm.title}
                     onChange={onChangeItemForm}
                     placeholder="例: 今週の新作コーヒー豆"
-                    className="w-full rounded-2xl border border-[#d8c8bc] bg-[#fffdfb] px-4 py-3 text-sm outline-none transition focus:border-[#8b5e3c]"
+                    className="w-full rounded-2xl border border-[#d8c8bc] bg-[#fffdfb] px-4 py-3.5 text-sm font-semibold text-[#4e342e] outline-none transition focus:border-[#8b5e3c] focus:ring-4 focus:ring-[#ead8ca]"
                   />
                 </div>
 
@@ -422,7 +456,7 @@ export function AdminPage() {
                     onChange={onChangeItemForm}
                     placeholder="短い説明"
                     rows={4}
-                    className="w-full rounded-2xl border border-[#d8c8bc] bg-[#fffdfb] px-4 py-3 text-sm outline-none transition focus:border-[#8b5e3c]"
+                    className="w-full rounded-2xl border border-[#d8c8bc] bg-[#fffdfb] px-4 py-3.5 text-sm font-semibold text-[#4e342e] outline-none transition focus:border-[#8b5e3c] focus:ring-4 focus:ring-[#ead8ca]"
                   />
                 </div>
 
@@ -435,7 +469,7 @@ export function AdminPage() {
                     value={itemForm.url}
                     onChange={onChangeItemForm}
                     placeholder="https://example.com/article"
-                    className="w-full rounded-2xl border border-[#d8c8bc] bg-[#fffdfb] px-4 py-3 text-sm outline-none transition focus:border-[#8b5e3c]"
+                    className="w-full rounded-2xl border border-[#d8c8bc] bg-[#fffdfb] px-4 py-3.5 text-sm font-semibold text-[#4e342e] outline-none transition focus:border-[#8b5e3c] focus:ring-4 focus:ring-[#ead8ca]"
                   />
                 </div>
 
@@ -448,7 +482,7 @@ export function AdminPage() {
                     value={itemForm.image_url}
                     onChange={onChangeItemForm}
                     placeholder="https://example.com/image.jpg"
-                    className="w-full rounded-2xl border border-[#d8c8bc] bg-[#fffdfb] px-4 py-3 text-sm outline-none transition focus:border-[#8b5e3c]"
+                    className="w-full rounded-2xl border border-[#d8c8bc] bg-[#fffdfb] px-4 py-3.5 text-sm font-semibold text-[#4e342e] outline-none transition focus:border-[#8b5e3c] focus:ring-4 focus:ring-[#ead8ca]"
                   />
                 </div>
 
@@ -459,7 +493,7 @@ export function AdminPage() {
                     name="kind"
                     value={itemForm.kind}
                     onChange={onChangeItemForm}
-                    className="w-full rounded-2xl border border-[#d8c8bc] bg-[#fffdfb] px-4 py-3 text-sm outline-none transition focus:border-[#8b5e3c]"
+                    className="w-full rounded-2xl border border-[#d8c8bc] bg-[#fffdfb] px-4 py-3.5 text-sm font-semibold text-[#4e342e] outline-none transition focus:border-[#8b5e3c] focus:ring-4 focus:ring-[#ead8ca]"
                   >
                     <option value="news">news</option>
                     <option value="recipe">recipe</option>
@@ -480,7 +514,7 @@ export function AdminPage() {
                     value={itemForm.source_id}
                     onChange={onChangeItemForm}
                     disabled={sources.length === 0}
-                    className="w-full rounded-2xl border border-[#d8c8bc] bg-[#fffdfb] px-4 py-3 text-sm outline-none transition focus:border-[#8b5e3c] disabled:cursor-not-allowed disabled:bg-stone-100"
+                    className="w-full rounded-2xl border border-[#d8c8bc] bg-[#fffdfb] px-4 py-3.5 text-sm font-semibold text-[#4e342e] outline-none transition focus:border-[#8b5e3c] focus:ring-4 focus:ring-[#ead8ca] disabled:cursor-not-allowed disabled:bg-stone-100"
                   >
                     {sources.length === 0 ? (
                       <option value="">sourceを先に登録</option>
@@ -504,57 +538,58 @@ export function AdminPage() {
                     id="item-published-at"
                     name="published_at"
                     type="datetime-local"
-                    value={japanDateTime(itemForm.published_at)}
+                    value={formatTokyoDateTimeInput(itemForm.published_at)}
                     onChange={onChangeItemForm}
-                    className="w-full rounded-2xl border border-[#d8c8bc] bg-[#fffdfb] px-4 py-3 text-sm outline-none transition focus:border-[#8b5e3c]"
+                    className="w-full rounded-2xl border border-[#d8c8bc] bg-[#fffdfb] px-4 py-3.5 text-sm font-semibold text-[#4e342e] outline-none transition focus:border-[#8b5e3c] focus:ring-4 focus:ring-[#ead8ca]"
                   />
                 </div>
               </div>
 
-              <button
-                type="submit"
-                disabled={savingItem || sources.length === 0}
-                className="inline-flex rounded-2xl bg-[#8b5e3c] px-5 py-3 text-sm font-semibold text-white transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60"
-              >
-                {savingItem ? "作成中..." : "Itemを作成"}
-              </button>
+              <div className="flex justify-center pt-1">
+                <SubmitBtn
+                  label="Itemを作成"
+                  loadingLabel="作成中..."
+                  loading={savingItem || sources.length === 0}
+                  tone="mid"
+                />
+              </div>
             </form>
 
             {itemMsg ? (
-              <p className="mt-4 rounded-2xl bg-[#f8efe7] px-4 py-3 text-sm text-[#5a3825]">
+              <p className="mt-5 rounded-[22px] border border-[#ead9cd] bg-[#f8efe7] px-4 py-3 text-sm font-bold text-[#5a3825]">
                 {itemMsg}
               </p>
             ) : null}
 
             {createdItem ? (
-              <div className="mt-4 rounded-3xl border border-[#e3d6cc] bg-[#fffaf6] p-4">
-                <p className="text-sm font-semibold text-[#5a3825]">
-                  直近の作成結果
+              <div className="mt-5 rounded-[28px] border border-[#e3d6cc] bg-[#fffaf6] p-5">
+                <p className="text-sm font-black tracking-[0.18em] text-[#a1775b] uppercase">
+                  latest item
                 </p>
 
-                <dl className="mt-3 grid gap-2 text-sm text-stone-700">
+                <dl className="mt-4 grid gap-3 text-sm text-stone-700">
                   <div className="grid grid-cols-[110px_1fr] gap-3">
-                    <dt className="font-semibold">ID</dt>
+                    <dt className="font-bold text-[#5f4a40]">ID</dt>
                     <dd>{createdItem.id}</dd>
                   </div>
 
                   <div className="grid grid-cols-[110px_1fr] gap-3">
-                    <dt className="font-semibold">タイトル</dt>
+                    <dt className="font-bold text-[#5f4a40]">タイトル</dt>
                     <dd>{createdItem.title}</dd>
                   </div>
 
                   <div className="grid grid-cols-[110px_1fr] gap-3">
-                    <dt className="font-semibold">種別</dt>
+                    <dt className="font-bold text-[#5f4a40]">種別</dt>
                     <dd>{createdItem.kind}</dd>
                   </div>
 
                   <div className="grid grid-cols-[110px_1fr] gap-3">
-                    <dt className="font-semibold">Source ID</dt>
+                    <dt className="font-bold text-[#5f4a40]">Source ID</dt>
                     <dd>{createdItem.source_id}</dd>
                   </div>
 
                   <div className="grid grid-cols-[110px_1fr] gap-3">
-                    <dt className="font-semibold">公開日時</dt>
+                    <dt className="font-bold text-[#5f4a40]">公開日時</dt>
                     <dd>{createdItem.published_at}</dd>
                   </div>
                 </dl>
@@ -563,32 +598,37 @@ export function AdminPage() {
           </section>
         </div>
 
-        <section className="mt-6 rounded-3xl border border-[#d9c7b8] bg-white p-6 shadow-sm">
-          <SectionTitle title="Source 一覧" sub="itemを登録します。" />
+        <section className="mt-6 rounded-[32px] border border-[#e6d9ce] bg-white p-6 shadow-[0_10px_28px_rgba(110,78,56,0.06)] md:p-7">
+          <SectionTitle
+            title="Source 一覧"
+            sub="登録済みの出典元を確認します。"
+          />
 
           {loadingSources ? (
-            <p className="text-sm text-stone-600">loading...</p>
+            <p className="text-sm font-semibold text-stone-600">loading...</p>
           ) : null}
 
           {!loadingSources && sourcesMsg ? (
-            <p className="rounded-2xl bg-[#f8efe7] px-4 py-3 text-sm text-[#5a3825]">
+            <p className="rounded-[22px] border border-[#ead9cd] bg-[#f8efe7] px-4 py-3 text-sm font-bold text-[#5a3825]">
               {sourcesMsg}
             </p>
           ) : null}
 
           {!loadingSources && !sourcesMsg && sources.length === 0 ? (
-            <p className="text-sm text-stone-600">まだありません。</p>
+            <p className="text-sm font-semibold text-stone-600">
+              まだありません。
+            </p>
           ) : null}
 
           {!loadingSources && sources.length > 0 ? (
             <div className="overflow-x-auto">
-              <table className="min-w-full border-separate border-spacing-y-2 text-sm">
+              <table className="min-w-full border-separate border-spacing-y-3 text-sm">
                 <thead>
-                  <tr className="text-left text-stone-600">
-                    <th className="px-3 py-2">id</th>
-                    <th className="px-3 py-2">name</th>
-                    <th className="px-3 py-2">site_url</th>
-                    <th className="px-3 py-2">created_at</th>
+                  <tr className="text-left text-[#7b6d63]">
+                    <th className="px-3 py-2 font-black">id</th>
+                    <th className="px-3 py-2 font-black">name</th>
+                    <th className="px-3 py-2 font-black">site_url</th>
+                    <th className="px-3 py-2 font-black">created_at</th>
                   </tr>
                 </thead>
 
@@ -598,15 +638,19 @@ export function AdminPage() {
                       key={source.id}
                       className="rounded-2xl bg-[#fffaf6] text-stone-800"
                     >
-                      <td className="px-3 py-3">{source.id}</td>
-                      <td className="px-3 py-3 font-medium">{source.name}</td>
-                      <td className="px-3 py-3">
+                      <td className="px-3 py-3 align-top font-semibold">
+                        {source.id}
+                      </td>
+                      <td className="px-3 py-3 align-top font-bold">
+                        {source.name}
+                      </td>
+                      <td className="px-3 py-3 align-top">
                         {source.site_url ? (
                           <a
                             href={source.site_url}
                             target="_blank"
                             rel="noreferrer"
-                            className="break-all text-[#7a5239] underline"
+                            className="break-all font-semibold text-[#7a5239] underline"
                           >
                             {source.site_url}
                           </a>
@@ -614,8 +658,8 @@ export function AdminPage() {
                           <span className="text-stone-400">-</span>
                         )}
                       </td>
-                      <td className="px-3 py-3">
-                        {japanDateTime(source.created_at)}
+                      <td className="px-3 py-3 align-top font-semibold">
+                        {formatDisplayDateTime(source.created_at)}
                       </td>
                     </tr>
                   ))}
@@ -625,6 +669,6 @@ export function AdminPage() {
           ) : null}
         </section>
       </div>
-    </div>
+    </main>
   );
 }
