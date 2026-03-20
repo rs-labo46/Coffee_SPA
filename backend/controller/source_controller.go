@@ -47,13 +47,11 @@ func (ctl SrcCtl) List(c echo.Context) error {
 	})
 }
 
-// POST /sources を処理。
-// 認可はmiddleware 側で行う。
 func (ctl SrcCtl) Create(c echo.Context) error {
 	var req AddSourceReq
 
 	if err := bindJSON(c, &req); err != nil {
-		return err
+		return writeErr(c, err)
 	}
 
 	src, err := ctl.uc.Add(actorFromCtx(c), usecase.AddSourceIn{
