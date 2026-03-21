@@ -67,7 +67,7 @@ export function kindBadgeLabel(kind: ItemKind): string {
 export function kindTitleLabel(kind: ItemKind): string {
   switch (kind) {
     case "news":
-      return "主要";
+      return "ニュース";
     case "recipe":
       return "レシピ";
     case "deal":

@@ -1,7 +1,8 @@
 import { useState } from "react";
 import { Link, Navigate, useNavigate } from "react-router-dom";
-import { useAuth } from "../auth/auth";
+
 import { ApiError } from "../lib/api";
+import { useAuth } from "../auth/use-auth";
 
 export function LoginPage() {
   const nav = useNavigate();
@@ -90,7 +91,7 @@ export function LoginPage() {
               <input
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                placeholder="password"
+                placeholder="12文字以上"
                 type="password"
                 autoComplete="current-password"
                 className="w-full rounded-2xl border border-[#dccabc] bg-[#fffdfa] px-4 py-4 text-base font-semibold text-[#4e342e] outline-none transition placeholder:text-[#b09d90] focus:border-[#9c7257] focus:ring-4 focus:ring-[#ead8ca]"

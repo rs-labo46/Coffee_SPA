@@ -1,11 +1,8 @@
-import { useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
-import { useAuth } from "../auth/auth";
+import { Link } from "react-router-dom";
+import { useAuth } from "../auth/use-auth";
 
 export function MePage() {
-  const { user, logout } = useAuth();
-  const nav = useNavigate();
-  const [loading, setLoading] = useState<boolean>(false);
+  const { user } = useAuth();
 
   if (!user) {
     return <div>no user</div>;
@@ -15,17 +12,6 @@ export function MePage() {
     user.role === "admin"
       ? "bg-[#f1e3d6] text-[#7b523a]"
       : "bg-[#ece6ff] text-[#6a55aa]";
-
-  async function onLogout() {
-    setLoading(true);
-
-    try {
-      await logout();
-      nav("/login");
-    } finally {
-      setLoading(false);
-    }
-  }
 
   return (
     <main className="min-h-[calc(100vh-120px)] bg-[#f6f1eb] px-4 py-8 md:px-8 md:py-10">

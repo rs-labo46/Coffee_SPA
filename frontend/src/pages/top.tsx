@@ -5,7 +5,6 @@ import { formatDisplayDateTime } from "../lib/date";
 import {
   cardImage,
   halfPreviewText,
-  hasRef,
   isFreshItem,
   kindBadgeLabel,
   kindDescLabel,
@@ -24,7 +23,7 @@ type KindTab = {
 };
 
 const kindTabs: KindTab[] = [
-  { kind: "news", label: "主要" },
+  { kind: "news", label: "ニュース" },
   { kind: "recipe", label: "レシピ" },
   { kind: "deal", label: "セール" },
   { kind: "shop", label: "店舗" },
@@ -141,7 +140,7 @@ function DetailModal({
         <div className="flex items-start justify-between gap-4 border-b border-[#d7e0ef] bg-[#f4f7fc] px-5 py-4">
           <div>
             <p className="text-sm font-black tracking-[0.24em] text-[#4668ad] uppercase">
-              modal preview
+              preview
             </p>
             <h2 className="mt-1 text-2xl font-black text-[#16326e]">
               記事プレビュー
@@ -196,23 +195,13 @@ function DetailModal({
                 {halfPreviewText(item)}
               </p>
 
-              <div className="flex flex-wrap gap-3">
+              <div className="flex flex-wrap justify-center gap-3">
                 <Link
                   to={`/items/${item.id}`}
                   className="inline-flex min-h-11 items-center justify-center rounded-full bg-[#2a4fa3] px-5 py-2 text-sm font-bold text-white transition hover:opacity-90"
                 >
                   もっと見る
                 </Link>
-                {hasRef(item.url) ? (
-                  <a
-                    href={item.url || "#"}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="inline-flex min-h-11 items-center justify-center rounded-full border border-[#2a4fa3] px-5 py-2 text-sm font-bold text-[#2a4fa3] transition hover:bg-[#eef3fb]"
-                  >
-                    参考元へ
-                  </a>
-                ) : null}
               </div>
             </div>
           ) : null}

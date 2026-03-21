@@ -5,7 +5,6 @@ import { formatDisplayDateTime } from "../lib/date";
 import {
   bodyParagraphs,
   cardImage,
-  hasRef,
   kindBadgeLabel,
   kindDescLabel,
   type Item,
@@ -141,7 +140,7 @@ export function ItemDetailPage() {
             {item.summary ? (
               <div className="mt-6 rounded-[16px] border border-[#d7e0ef] bg-[#f7faff] px-5 py-4">
                 <p className="text-sm font-black tracking-[0.2em] text-[#4668ad] uppercase">
-                  summary
+                  概要
                 </p>
                 <p className="mt-3 text-base font-medium leading-8 text-[#30466d]">
                   {item.summary}
@@ -149,40 +148,22 @@ export function ItemDetailPage() {
               </div>
             ) : null}
 
-            <section className="mt-8 space-y-5">
-              {paragraphs.map((paragraph, index) => (
-                <p
-                  key={`${item.id}-${index}`}
-                  className="text-base font-medium leading-9 text-[#30466d]"
-                >
-                  {paragraph}
-                </p>
-              ))}
+            <section className="mt-8 rounded-[16px] border border-[#d7e0ef] bg-white px-5 py-6 md:px-7">
+              <p className="mb-5 text-sm font-black tracking-[0.2em] text-[#4668ad] uppercase">
+                内容
+              </p>
+
+              <div className="space-y-5">
+                {paragraphs.map((paragraph, index) => (
+                  <p
+                    key={`${item.id}-${index}`}
+                    className="text-base font-medium leading-9 text-[#30466d]"
+                  >
+                    {paragraph}
+                  </p>
+                ))}
+              </div>
             </section>
-
-            <div className="mt-8 flex flex-wrap gap-3">
-              {hasRef(item.url) ? (
-                <a
-                  href={item.url || "#"}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="inline-flex min-h-11 items-center justify-center rounded-full bg-[#2a4fa3] px-5 py-2 text-sm font-bold text-white transition hover:opacity-90"
-                >
-                  参考元を開く
-                </a>
-              ) : null}
-
-              {source?.site_url ? (
-                <a
-                  href={source.site_url}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="inline-flex min-h-11 items-center justify-center rounded-full border border-[#2a4fa3] px-5 py-2 text-sm font-bold text-[#2a4fa3] transition hover:bg-[#eef3fb]"
-                >
-                  出典サイトを見る
-                </a>
-              ) : null}
-            </div>
           </div>
         </article>
       </div>

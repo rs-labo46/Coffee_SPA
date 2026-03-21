@@ -1,12 +1,4 @@
-import {
-  createContext,
-  useContext,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-  type ReactNode,
-} from "react";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import {
   ApiError,
   api,
@@ -15,16 +7,7 @@ import {
   getToken,
   setToken,
 } from "../lib/api";
-
-type Role = "user" | "admin";
-
-type User = {
-  id: number;
-  email: string;
-  role: Role;
-  token_ver: number;
-  email_verified: boolean;
-};
+import { AuthContext, type AuthCtx, type User } from "./context";
 
 type SignupResponse = {
   user: User;
@@ -43,22 +26,6 @@ type RefreshResponse = {
 type MeResponse = {
   user: User;
 };
-
-type AuthCtx = {
-  user: User | null;
-  loading: boolean;
-  signup: (email: string, password: string) => Promise<string>;
-  verifyEmail: (token: string) => Promise<void>;
-  resendVerify: (email: string) => Promise<string>;
-  forgotPassword: (email: string) => Promise<string>;
-  resetPassword: (token: string, newPassword: string) => Promise<void>;
-  login: (email: string, password: string) => Promise<void>;
-  refresh: () => Promise<boolean>;
-  logout: () => Promise<void>;
-  loadMe: () => Promise<void>;
-};
-
-const AuthContext = createContext<AuthCtx | null>(null);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
@@ -235,14 +202,4 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [user, loading]);
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
-}
-
-export function useAuth(): AuthCtx {
-  const ctx = useContext(AuthContext);
-
-  if (!ctx) {
-    throw new Error("auth context not found");
-  }
-
-  return ctx;
 }

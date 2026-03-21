@@ -1,7 +1,8 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
-import { useAuth } from "../auth/auth";
+
 import { ApiError } from "../lib/api";
+import { useAuth } from "../auth/use-auth";
 
 export function SignupPage() {
   const { signup } = useAuth();

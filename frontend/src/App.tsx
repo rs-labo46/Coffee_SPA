@@ -6,7 +6,7 @@ import {
   Route,
   Routes,
 } from "react-router-dom";
-import { AuthProvider, useAuth } from "./auth/auth";
+import { AuthProvider } from "./auth/auth";
 
 import { AdminPage } from "./pages/admin";
 
@@ -21,6 +21,7 @@ import { VerifyEmailPage } from "./pages/verify-email";
 import { ForgotPasswordPage } from "./pages/forgot-password";
 import { ItemDetailPage } from "./pages/item-detail";
 import { ResetPasswordPage } from "./pages/reset-password";
+import { useAuth } from "./auth/use-auth";
 
 type GuardProps = {
   children: ReactNode;
