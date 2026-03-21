@@ -385,12 +385,6 @@ export default function TopPage() {
                       to={`/items?kind=${activeKind}`}
                       className="hover:underline"
                     >
-                      もっと見る
-                    </Link>
-                    <Link
-                      to={`/items?kind=${activeKind}`}
-                      className="hover:underline"
-                    >
                       トピックス一覧
                     </Link>
                   </div>

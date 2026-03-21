@@ -5,6 +5,7 @@ import {
   Navigate,
   Route,
   Routes,
+  useNavigate,
 } from "react-router-dom";
 import { AuthProvider } from "./auth/auth";
 
@@ -89,9 +90,11 @@ function HeaderNavItem({ to, label }: { to: string; label: string }) {
 
 function HeaderAuthActions() {
   const { user, logout } = useAuth();
+  const nav = useNavigate();
 
   async function onLogout() {
     await logout();
+    nav("/login", { replace: true });
   }
 
   if (!user) {

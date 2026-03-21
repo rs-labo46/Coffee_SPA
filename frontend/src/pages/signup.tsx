@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 
 import { ApiError } from "../lib/api";
 import { useAuth } from "../auth/use-auth";
+import { PasswordField } from "../components/password-field";
 
 export function SignupPage() {
   const { signup } = useAuth();
@@ -79,20 +80,13 @@ export function SignupPage() {
               />
             </label>
 
-            <label className="grid gap-2">
-              <span className="text-sm font-black tracking-[0.08em] text-[#5f4a40]">
-                パスワード
-              </span>
-
-              <input
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                placeholder="12文字以上のパスワード"
-                type="password"
-                autoComplete="new-password"
-                className="w-full rounded-2xl border border-[#dccabc] bg-[#fffdfa] px-4 py-4 text-base font-semibold text-[#4e342e] outline-none transition placeholder:text-[#b09d90] focus:border-[#9c7257] focus:ring-4 focus:ring-[#ead8ca]"
-              />
-            </label>
+            <PasswordField
+              label="パスワード"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              placeholder="12文字以上のパスワード"
+              autoComplete="new-password"
+            />
 
             <button
               type="submit"

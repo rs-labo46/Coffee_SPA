@@ -1,231 +1,64 @@
-# Coffee SPA
+# コーヒーSPA
 
-Coffee SPA は、コーヒー関連の情報を1つのSPAで閲覧できるアプリです。  
-フロントエンドは **React + Vite + TypeScript**、バックエンドは **Go + Echo + GORM**、データストアは **PostgreSQL + Redis** で構成しています。
+コーヒー系トピックを扱うSPAです。  
+Go + Echo + GORM のバックエンドと、React + TypeScript + Vite のフロントエンドで構成しています。
 
-**認証、メール確認、パスワード再設定、公開一覧、管理者による source / item 登録**までを一通り確認できます。
+このリポジトリでは、以下を実装しています。
 
----
-
-## このプロジェクトでできること
-
-| 区分         | できること                                                               |
-| ------------ | ------------------------------------------------------------------------ |
-| 公開機能     | トップページで `news / recipe / deal / shop` の4分類を表示               |
-| 公開機能     | 一覧ページでキーワード検索・種別絞り込み                                 |
-| 公開機能     | 記事モーダル表示、詳細ページ表示                                         |
-| 認証         | サインアップ、メール確認、ログイン、ログアウト                           |
-| 認証         | リフレッシュトークンによるアクセストークン再発行                         |
-| 認証         | 確認メール再送、パスワード再設定メール送信、パスワード更新               |
-| 会員機能     | `/me` で自分のユーザー情報を確認                                         |
-| 管理機能     | 管理者が source を登録                                                   |
-| 管理機能     | 管理者が item を登録                                                     |
-| 運用寄り機能 | Redis を使ったレート制限                                                 |
-| 品質確認     | backend は unit + E2E、frontend は build / lint / 型検査（通過確認済み） |
+- 認証（サインアップ / メール確認 / ログイン / リフレッシュ / ログアウト / パスワード再設定）
+- 記事一覧 / トップ表示 / 記事詳細
+- Source 一覧 / Source 作成
+- Admin による Item / Source 作成
+- モーダルでのプレビュー表示
+- 記事詳細ページでの全文表示
 
 ---
 
 ## 技術スタック
 
-### フロントエンド
+### Backend
 
-| 項目         | 内容                         |
-| ------------ | ---------------------------- |
-| UI           | React 19                     |
-| ビルド       | Vite 8                       |
-| 言語         | TypeScript 5                 |
-| ルーティング | React Router 7               |
-| スタイリング | Tailwind CSS 4               |
-| API 通信     | `fetch` ベースの独自ラッパー |
-| 状態管理     | React Context                |
+- Go
+- Echo
+- GORM
+- PostgreSQL
+- Redis
+- JWT
+- CSRF（refresh / logout）
 
-### バックエンド
+### Frontend
 
-| 項目               | 内容                            |
-| ------------------ | ------------------------------- |
-| 言語               | Go 1.25.0                       |
-| Web フレームワーク | Echo                            |
-| ORM                | GORM                            |
-| DB                 | PostgreSQL 16                   |
-| 制御               | Redis 7                         |
-| 認証               | JWT Bearer + Refresh Token      |
-| パスワード         | bcrypt                          |
-| API仕様            | OpenAPI 3 (`docs/openapi.yaml`) |
-
-### 実行環境
-
-| 項目     | 内容                    |
-| -------- | ----------------------- |
-| コンテナ | Docker / Docker Compose |
-| API      | Go アプリをコンテナ起動 |
-| Frontend | Node 22 Alpine          |
-| DB       | PostgreSQL 16           |
-| Redis    | Redis 7                 |
+- React
+- TypeScript
+- Vite
+- React Router
+- Tailwind CSS
 
 ---
 
-## 画面構成
+## ディレクトリ構成
 
-| パス               | 役割                              |
-| ------------------ | --------------------------------- |
-| `/`                | トップページ                      |
-| `/items`           | 一覧ページ                        |
-| `/items/:id`       | 記事詳細ページ                    |
-| `/signup`          | 新規登録                          |
-| `/verify-email`    | メール確認                        |
-| `/resend-verify`   | 確認メール再送                    |
-| `/login`           | ログイン                          |
-| `/forgot-password` | パスワード再設定メール送信        |
-| `/reset-password`  | 新しいパスワード設定              |
-| `/me`              | ログインユーザー情報表示          |
-| `/admin`           | 管理者向け source / item 登録画面 |
-
-`/me` はログイン必須、`/admin` は admin 権限必須です。
-
----
-
-## API 構成
-
-| 区分   | エンドポイント               | 内容                   |
-| ------ | ---------------------------- | ---------------------- |
-| Health | `GET /health`                | ヘルスチェック         |
-| Auth   | `POST /auth/signup`          | ユーザー登録           |
-| Auth   | `POST /auth/verify-email`    | メール確認             |
-| Auth   | `POST /auth/resend-verify`   | 確認メール再送         |
-| Auth   | `POST /auth/login`           | ログイン               |
-| Auth   | `POST /auth/password/forgot` | 再設定メール送信       |
-| Auth   | `POST /auth/password/reset`  | パスワード更新         |
-| Auth   | `POST /auth/refresh`         | アクセストークン再発行 |
-| Auth   | `POST /auth/logout`          | ログアウト             |
-| Auth   | `GET /me`                    | 現在ユーザー情報       |
-| Public | `GET /items/top`             | 種別ごとのトップ表示   |
-| Public | `GET /items`                 | アイテム一覧 / 検索    |
-| Public | `GET /items/:id`             | 記事詳細               |
-| Public | `GET /sources`               | source 一覧            |
-| Admin  | `POST /items`                | item 作成              |
-| Admin  | `POST /sources`              | source 作成            |
-
-詳細は `docs/openapi.yaml` を参照してください。
-
----
-
-## セットアップ手順
-
-### 1. 前提
-
-| 項目                    | 用途                                 |
-| ----------------------- | ------------------------------------ |
-| Docker / Docker Compose | 全体起動                             |
-| Git                     | ソース管理                           |
-| Go 1.25 系              | バックエンドをローカル起動する場合   |
-| Node.js / npm           | フロントエンドをローカル起動する場合 |
-
-### 2. 環境変数
-
-ルートの `.env` の例:
-
-```env
-PORT=8080
-POSTGRES_USER=myuser
-POSTGRES_PASSWORD=mypassword
-POSTGRES_DB=mydb
-POSTGRES_PORT=5433
-POSTGRES_HOST=localhost
-REDIS_HOST=localhost
-REDIS_PORT=6379
-JWT_SECRET=your-secret
-GO_ENV=dev
-API_DOMAIN=localhost
-FE_URL=http://localhost:3000
-SEED_ADMIN_EMAIL=admin@test.com
-SEED_ADMIN_PASSWORD=AdminPass123!
+```txt
+backend/   API サーバ・ドメインロジック・DB
+frontend/  SPA フロントエンド
+docs/      仕様書・補助資料
 ```
 
-フロントエンド側は `frontend/.env`:
+---
 
-```env
-VITE_API_BASE_URL=http://localhost:8080
-```
+## 起動方法
 
-### 3. Docker で起動
-
-リポジトリルートで実行します。
+### Docker 起動
 
 ```bash
 docker compose up --build
 ```
 
-起動後のURL:
-
-| サービス    | URL                     |
-| ----------- | ----------------------- |
-| Frontend    | `http://localhost:3000` |
-| Backend API | `http://localhost:8080` |
-| PostgreSQL  | `localhost:5433`        |
-| Redis       | `localhost:6379`        |
-
 ---
 
-## 開発フローの確認方法
+## 動作確認コマンド
 
-### サインアップから利用開始まで
-
-1. `/signup` で登録する
-2. バックエンドログの verify リンクを開く
-3. `/login` でログインする
-4. `/me` で状態を確認する
-
-### パスワード再設定
-
-1. `/forgot-password` でメールアドレス送信
-2. バックエンドログの reset リンクを開く
-3. `/reset-password` で新しいパスワードを設定
-4. 新しいパスワードでログインする
-
-### 管理者として登録確認
-
-1. 管理者アカウントでログイン
-2. `/admin` を開く
-3. 先に Source を作成
-4. その Source を使って Item を作成
-5. `/` または `/items` で公開表示を確認する
-
----
-
-## 品質確認とテスト
-
-### backend
-
-backend には unit テストと E2E テストがあります。
-
-実行コマンド:
-
-```bash
-cd backend
-go test ./...
-```
-
-E2E は API 起動後に別ターミナルで実行します。
-
-```bash
-cd backend
-BASE_URL=http://127.0.0.1:8080 go test ./tests/e2e -v -count=1
-```
-
-対象例:
-
-| 種別               | 主な対象                                                      |
-| ------------------ | ------------------------------------------------------------- |
-| controller         | auth, item, source の HTTP 入出力                             |
-| middleware         | CSRF, JWT など                                                |
-| policy / validator | バリデーションルール                                          |
-| usecase            | auth, item, source                                            |
-| router             | 主要ルート                                                    |
-| E2E                | signup, verify, login, refresh, logout, reset, items, sources |
-
-### frontend
-
-frontend は **自動テストフレームワーク未導入** です。
+### Frontend 品質確認
 
 ```bash
 cd frontend
@@ -234,46 +67,50 @@ npm run lint
 npm run build
 ```
 
----
+### Backend テスト
 
-## 現時点の提出判定
+```bash
+cd backend
+go test ./...
+```
 
-### backend
+### Backend E2E テスト
 
-- あなたの直近ログでは `go test ./...` と E2E は通っていました。
-- ただし、この実行環境では Go 1.25 toolchain を外部取得できず、こちらで再実行確認はできていません。
-  |
+E2E実行前にPostgreSQL / Redis / APIが起動している必要があります。
 
-## 詰みやすい点
-
-| 詰みやすい点                 | 原因                           | 回避策                                              |
-| ---------------------------- | ------------------------------ | --------------------------------------------------- |
-| サインアップ後に先へ進めない | メールは実送信ではなくログ出力 | バックエンドログの verify リンクを開く              |
-| reset が進まない             | reset リンクもログ出力方式     | バックエンドログの reset リンクを開く               |
-| refresh が失敗する           | CSRF ヘッダ or Cookie 不足     | `credentials: include` と `X-CSRF-Token` を確認     |
-| `/admin` に入れない          | admin 権限がない / token切れ   | seed 管理者でログイン、必要なら refresh 実装確認    |
-| API が起動しない             | `.env` 不足、DB / Redis 未起動 | ルート `.env` と `docker compose up --build` を確認 |
-| DB 接続できない              | ホストとコンテナ内ポートを混同 | ホストは `5433`、api コンテナからは `5432`          |
-| `No space left on device`    | Docker のディスク容量不足      | 不要 volume / image を掃除する                      |
-| frontend build が落ちる      | 未使用変数 / lint rule 失敗    | `tsc`, `lint`, `build` を提出前に毎回通す           |
+```bash
+cd backend
+BASE_URL=http://127.0.0.1:8080 go test ./tests/e2e -v -count=1
+```
 
 ---
 
-## ドキュメント
+## 確認済みステータス
 
-| ファイル                  | 内容     |
-| ------------------------- | -------- |
-| `docs/openapi.yaml`       | API 仕様 |
-| `docs/SPA_ER.pdf`         | ER 図    |
-| `docs/アーキテクチャ.png` | 構成図   |
+現時点で以下を通過済みです。
+
+- Frontend: `npx tsc -b && npm run lint && npm run build`
+- Backend: `go test ./...`
+- Backend E2E: `BASE_URL=http://127.0.0.1:8080 go test ./tests/e2e -v -count=1`
 
 ---
 
-## 今後の拡張ポイント
+## 実装上のポイント
 
-- item の更新 / 削除
-- 管理画面の一覧 / 編集 / 削除
-- frontend テストフレームワーク導入
-- CI での自動テスト
-- メール送信基盤の実装
-- repository / auth の追加テスト
+### 記事表示
+
+- トップページはカテゴリ切り替え型
+- 記事クリックでモーダル表示
+- 「もっと見る」で詳細ページへ遷移
+- 詳細ページでは本文を全文表示
+
+### 管理画面
+
+- Admin ログイン時のみ Item / Source を作成可能
+- Access Token 切れに対しては refresh を挟んで再試行する構成
+
+### データ
+
+- seed で記事データを投入
+
+---
