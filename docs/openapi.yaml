@@ -1,0 +1,812 @@
+openapi: 3.0.3
+info:
+  title: Coffee SPA Backend API
+  version: 1.0.0
+  description: |
+    Coffee SPA バックエンド API。
+    Go + Echo + GORM + JWT を前提としたAPI定義。
+
+servers:
+  - url: http://localhost:8080
+    description: local
+
+tags:
+  - name: Health
+  - name: Auth
+  - name: Portal
+  - name: Admin
+
+paths:
+  /health:
+    get:
+      tags: [Health]
+      summary: health check
+      operationId: getHealth
+      responses:
+        "200":
+          description: ok
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HealthRes"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+  /auth/signup:
+    post:
+      tags: [Auth]
+      summary: sign up
+      operationId: postAuthSignup
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SignupReq"
+      responses:
+        "201":
+          description: created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SignupRes"
+        "400":
+          $ref: "#/components/responses/InvalidRequest"
+        "409":
+          $ref: "#/components/responses/ConflictError"
+        "429":
+          $ref: "#/components/responses/RateLimitedError"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+  /auth/verify-email:
+    post:
+      tags: [Auth]
+      summary: verify email
+      operationId: postAuthVerifyEmail
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/VerifyEmailReq"
+      responses:
+        "204":
+          description: no content
+        "400":
+          $ref: "#/components/responses/InvalidRequest"
+        "401":
+          $ref: "#/components/responses/UnauthorizedError"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+  /auth/resend-verify:
+    post:
+      tags: [Auth]
+      summary: resend verify mail
+      operationId: postAuthResendVerify
+      description: |
+        ユーザー存在の有無を漏らさないため、HTTPは常に204を返す。
+        レート制限に達しても204を返す。
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ResendVerifyReq"
+      responses:
+        "204":
+          description: no content
+        "400":
+          $ref: "#/components/responses/InvalidRequest"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+  /auth/login:
+    post:
+      tags: [Auth]
+      summary: login
+      operationId: postAuthLogin
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LoginReq"
+      responses:
+        "200":
+          description: ok
+          headers:
+            Set-Cookie:
+              description: |
+                refresh_token(Path=/auth, HttpOnly, SameSite=Lax, Max-Age=86400)
+                と csrf_token(Path=/, SameSite=Lax, Max-Age=86400) を返す。
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthRes"
+        "400":
+          $ref: "#/components/responses/InvalidRequest"
+        "401":
+          $ref: "#/components/responses/UnauthorizedError"
+        "429":
+          $ref: "#/components/responses/RateLimitedError"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+  /auth/refresh:
+    post:
+      tags: [Auth]
+      summary: refresh access token
+      operationId: postAuthRefresh
+      description: |
+        refresh_token cookieを使ってaccess tokenを再発行する。
+        cookie csrf_token と header X-CSRF-Token は同じ値でなければならない。
+        refresh_token なし / expired / revoked / reuse は 401 固定。
+      security:
+        - refreshCookieAuth: []
+          csrfHeaderAuth: []
+      parameters:
+        - $ref: "#/components/parameters/XCsrfToken"
+      responses:
+        "200":
+          description: ok
+          headers:
+            Set-Cookie:
+              description: |
+                新しい refresh_token(Path=/auth) と csrf_token(Path=/) を返す。
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthRes"
+        "401":
+          $ref: "#/components/responses/UnauthorizedError"
+        "403":
+          description: csrf mismatch
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ForbiddenCsrfRes"
+        "429":
+          $ref: "#/components/responses/RateLimitedError"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+  /auth/logout:
+    post:
+      tags: [Auth]
+      summary: logout
+      operationId: postAuthLogout
+      description: |
+        Bearer 認証のみ。CSRF は不要。
+        成功時は refresh_token と csrf_token を削除する。
+        refresh cookie があれば family revoke を行う。
+      security:
+        - bearerAuth: []
+      responses:
+        "204":
+          description: no content
+          headers:
+            Set-Cookie:
+              description: |
+                refresh_token と csrf_token を Max-Age=0 と Expires=過去で削除する。
+              schema:
+                type: string
+        "401":
+          $ref: "#/components/responses/UnauthorizedError"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+  /me:
+    get:
+      tags: [Auth]
+      summary: current user
+      operationId: getMe
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: ok
+          headers:
+            Cache-Control:
+              description: no-store
+              schema:
+                type: string
+                example: no-store
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MeRes"
+        "401":
+          $ref: "#/components/responses/UnauthorizedError"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+  /auth/password/forgot:
+    post:
+      tags: [Auth]
+      summary: forgot password
+      operationId: postAuthPasswordForgot
+      description: |
+        ユーザー存在の有無を漏らさないため、HTTP は常に 204 を返す。
+        レート制限に達しても 204 を返す。
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ForgotPwReq"
+      responses:
+        "204":
+          description: no content
+        "400":
+          $ref: "#/components/responses/InvalidRequest"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+  /auth/password/reset:
+    post:
+      tags: [Auth]
+      summary: reset password
+      operationId: postAuthPasswordReset
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ResetPwReq"
+      responses:
+        "204":
+          description: no content
+        "400":
+          $ref: "#/components/responses/InvalidRequest"
+        "401":
+          $ref: "#/components/responses/UnauthorizedError"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+  /items/top:
+    get:
+      tags: [Portal]
+      summary: top items by kind
+      operationId: getItemsTop
+      description: |
+        news / recipe / deal / shop の4キーを必ず返す。
+        cap=0 の kind は空配列。
+      parameters:
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+            default: 3
+            minimum: 0
+      responses:
+        "200":
+          description: ok
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TopItemsRes"
+        "400":
+          $ref: "#/components/responses/InvalidRequest"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+  /items:
+    get:
+      tags: [Portal]
+      summary: search items
+      operationId: getItems
+      parameters:
+        - name: q
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: kind
+          in: query
+          required: false
+          schema:
+            $ref: "#/components/schemas/ItemKind"
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+            default: 20
+            minimum: 1
+            maximum: 50
+        - name: offset
+          in: query
+          required: false
+          schema:
+            type: integer
+            default: 0
+            minimum: 0
+      responses:
+        "200":
+          description: ok
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ItemListRes"
+        "400":
+          $ref: "#/components/responses/InvalidRequest"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+    post:
+      tags: [Admin]
+      summary: create item
+      operationId: postItems
+      description: admin only
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AddItemReq"
+      responses:
+        "201":
+          description: created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ItemRes"
+        "400":
+          $ref: "#/components/responses/InvalidRequest"
+        "401":
+          $ref: "#/components/responses/UnauthorizedError"
+        "403":
+          $ref: "#/components/responses/ForbiddenError"
+        "409":
+          $ref: "#/components/responses/ConflictError"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+  /sources:
+    get:
+      tags: [Portal]
+      summary: list sources
+      operationId: getSources
+      responses:
+        "200":
+          description: ok
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SourceListRes"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+    post:
+      tags: [Admin]
+      summary: create source
+      operationId: postSources
+      description: admin only
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AddSourceReq"
+      responses:
+        "201":
+          description: created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SourceRes"
+        "400":
+          $ref: "#/components/responses/InvalidRequest"
+        "401":
+          $ref: "#/components/responses/UnauthorizedError"
+        "403":
+          $ref: "#/components/responses/ForbiddenError"
+        "409":
+          $ref: "#/components/responses/ConflictError"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+    refreshCookieAuth:
+      type: apiKey
+      in: cookie
+      name: refresh_token
+
+    csrfHeaderAuth:
+      type: apiKey
+      in: header
+      name: X-CSRF-Token
+
+  parameters:
+    XCsrfToken:
+      name: X-CSRF-Token
+      in: header
+      required: true
+      description: csrf_token cookie と同じ値を送る
+      schema:
+        type: string
+
+  responses:
+    InvalidRequest:
+      description: invalid request
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrRes"
+          examples:
+            invalid_request:
+              value:
+                error: invalid_request
+
+    UnauthorizedError:
+      description: unauthorized
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrRes"
+          examples:
+            unauthorized:
+              value:
+                error: unauthorized
+
+    ForbiddenError:
+      description: forbidden
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrRes"
+          examples:
+            forbidden:
+              value:
+                error: forbidden
+
+    ConflictError:
+      description: conflict
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrRes"
+          examples:
+            conflict:
+              value:
+                error: conflict
+
+    RateLimitedError:
+      description: rate limited
+      headers:
+        Retry-After:
+          description: seconds until retry
+          schema:
+            type: integer
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrRes"
+          examples:
+            rate_limited:
+              value:
+                error: rate_limited
+
+    InternalError:
+      description: internal error
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrRes"
+          examples:
+            internal:
+              value:
+                error: internal
+
+  schemas:
+    HealthRes:
+      type: object
+      required: [status]
+      properties:
+        status:
+          type: string
+          example: ok
+
+    ErrRes:
+      type: object
+      required: [error]
+      properties:
+        error:
+          type: string
+          enum:
+            - invalid_request
+            - unauthorized
+            - forbidden
+            - not_found
+            - conflict
+            - rate_limited
+            - internal
+
+    ForbiddenCsrfRes:
+      type: object
+      required: [error, message]
+      properties:
+        error:
+          type: string
+          example: forbidden
+        message:
+          type: string
+          example: csrf token mismatch
+
+    Role:
+      type: string
+      enum:
+        - user
+        - admin
+
+    ItemKind:
+      type: string
+      enum:
+        - news
+        - recipe
+        - deal
+        - shop
+
+    User:
+      type: object
+      required:
+        - id
+        - email
+        - role
+        - token_ver
+        - email_verified
+      properties:
+        id:
+          type: integer
+          format: int64
+        email:
+          type: string
+          format: email
+        role:
+          $ref: "#/components/schemas/Role"
+        token_ver:
+          type: integer
+        email_verified:
+          type: boolean
+
+    Source:
+      type: object
+      required:
+        - id
+        - name
+      properties:
+        id:
+          type: integer
+          format: int64
+        name:
+          type: string
+        site_url:
+          type: string
+          format: uri
+          nullable: true
+
+    Item:
+      type: object
+      required:
+        - id
+        - title
+        - kind
+        - source_id
+        - published_at
+      properties:
+        id:
+          type: integer
+          format: int64
+        title:
+          type: string
+        summary:
+          type: string
+          nullable: true
+        url:
+          type: string
+          format: uri
+          nullable: true
+        image_url:
+          type: string
+          format: uri
+          nullable: true
+        kind:
+          $ref: "#/components/schemas/ItemKind"
+        source_id:
+          type: integer
+          format: int64
+        published_at:
+          type: string
+          format: date-time
+
+    SignupReq:
+      type: object
+      required: [email, password]
+      properties:
+        email:
+          type: string
+          format: email
+        password:
+          type: string
+          format: password
+
+    VerifyEmailReq:
+      type: object
+      required: [token]
+      properties:
+        token:
+          type: string
+
+    ResendVerifyReq:
+      type: object
+      required: [email]
+      properties:
+        email:
+          type: string
+          format: email
+
+    LoginReq:
+      type: object
+      required: [email, password]
+      properties:
+        email:
+          type: string
+          format: email
+        password:
+          type: string
+          format: password
+
+    ForgotPwReq:
+      type: object
+      required: [email]
+      properties:
+        email:
+          type: string
+          format: email
+
+    ResetPwReq:
+      type: object
+      required: [token, new_password]
+      properties:
+        token:
+          type: string
+        new_password:
+          type: string
+          format: password
+
+    SignupRes:
+      type: object
+      required: [user]
+      properties:
+        user:
+          $ref: "#/components/schemas/User"
+
+    AuthRes:
+      type: object
+      required: [access_token, user]
+      properties:
+        access_token:
+          type: string
+        user:
+          $ref: "#/components/schemas/User"
+
+    MeRes:
+      type: object
+      required: [user]
+      properties:
+        user:
+          $ref: "#/components/schemas/User"
+
+    AddItemReq:
+      type: object
+      required:
+        - title
+        - kind
+        - source_id
+        - published_at
+      properties:
+        title:
+          type: string
+          maxLength: 120
+        summary:
+          type: string
+          maxLength: 500
+          nullable: true
+        url:
+          type: string
+          format: uri
+          nullable: true
+        image_url:
+          type: string
+          format: uri
+          nullable: true
+        kind:
+          $ref: "#/components/schemas/ItemKind"
+        source_id:
+          type: integer
+          format: int64
+        published_at:
+          type: string
+          format: date-time
+
+    ItemRes:
+      type: object
+      required: [item]
+      properties:
+        item:
+          $ref: "#/components/schemas/Item"
+
+    ItemListRes:
+      type: object
+      required: [items]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/Item"
+
+    TopItemsRes:
+      type: object
+      required: [news, recipe, deal, shop]
+      properties:
+        news:
+          type: array
+          items:
+            $ref: "#/components/schemas/Item"
+        recipe:
+          type: array
+          items:
+            $ref: "#/components/schemas/Item"
+        deal:
+          type: array
+          items:
+            $ref: "#/components/schemas/Item"
+        shop:
+          type: array
+          items:
+            $ref: "#/components/schemas/Item"
+
+    AddSourceReq:
+      type: object
+      required: [name]
+      properties:
+        name:
+          type: string
+          maxLength: 80
+        site_url:
+          type: string
+          format: uri
+          nullable: true
+
+    SourceRes:
+      type: object
+      required: [source]
+      properties:
+        source:
+          $ref: "#/components/schemas/Source"
+
+    SourceListRes:
+      type: object
+      required: [sources]
+      properties:
+        sources:
+          type: array
+          items:
+            $ref: "#/components/schemas/Source"
