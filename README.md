@@ -1,16 +1,34 @@
 # コーヒーSPA
 
-コーヒー系トピックを扱うSPAです。  
-Go + Echo + GORM のバックエンドと、React + TypeScript + Vite のフロントエンドで構成しています。
+コーヒー情報を 1 つの SPA で閲覧・管理するアプリです。  
+フロントエンドは React + TypeScript + Vite、バックエンドは Go + Echo + GORM で構成しています。
 
-このリポジトリでは、以下を実装しています。
+公開ユーザー向けの記事閲覧に加えて、認証、メール確認、パスワード再設定、管理者による Item / Source 作成までを実装しています。
 
-- 認証（サインアップ / メール確認 / ログイン / リフレッシュ / ログアウト / パスワード再設定）
-- 記事一覧 / トップ表示 / 記事詳細
-- Source 一覧 / Source 作成
-- Admin による Item / Source 作成
-- モーダルでのプレビュー表示
-- 記事詳細ページでの全文表示
+---
+
+## 概要
+
+| 項目           | 内容                                                    |
+| -------------- | ------------------------------------------------------- |
+| アプリ名       | コーヒーSPA                                             |
+| フロントエンド | React / TypeScript / Vite / React Router / Tailwind CSS |
+| バックエンド   | Go / Echo / GORM / PostgreSQL / Redis / JWT             |
+| 主な用途       | コーヒー関連記事の表示、認証、管理画面、記事登録        |
+| 開発方針       | シンプルで読みやすい構成、責務を分けた実務寄りの実装    |
+
+---
+
+## 主な機能
+
+| 区分         | 機能                                                              |
+| ------------ | ----------------------------------------------------------------- |
+| 認証         | サインアップ / メール確認 / ログイン / リフレッシュ / ログアウト  |
+| パスワード   | パスワード再設定メール送信 / 再設定                               |
+| 公開画面     | トップ表示 / 記事一覧 / 記事詳細 / Source一覧                     |
+| 管理画面     | Admin による Item 作成 / Source 作成                              |
+| UI           | モーダルでの記事プレビュー / 詳細ページで全文表示                 |
+| セキュリティ | JWT / Refresh Token / CSRF / CORS / Security Headers / Rate Limit |
 
 ---
 
@@ -18,47 +36,128 @@ Go + Echo + GORM のバックエンドと、React + TypeScript + Vite のフロ�
 
 ### Backend
 
-- Go
-- Echo
-- GORM
-- PostgreSQL
-- Redis
-- JWT
-- CSRF（refresh / logout）
+| 技術       | 用途                         |
+| ---------- | ---------------------------- |
+| Go         | API 実装                     |
+| Echo       | ルーティング / HTTP ハンドラ |
+| GORM       | DB アクセス                  |
+| PostgreSQL | 永続データ保存               |
+| Redis      | Rate Limit / 補助用途        |
+| JWT        | Access Token                 |
+| Cookie     | Refresh Token / CSRF Token   |
 
 ### Frontend
 
-- React
-- TypeScript
-- Vite
-- React Router
-- Tailwind CSS
+| 技術         | 用途                |
+| ------------ | ------------------- |
+| React        | UI                  |
+| TypeScript   | 型安全な実装        |
+| Vite         | 開発サーバ / ビルド |
+| React Router | 画面遷移            |
+| Tailwind CSS | スタイリング        |
 
 ---
 
 ## ディレクトリ構成
 
-```txt
-backend/   API サーバ・ドメインロジック・DB
-frontend/  SPA フロントエンド
-docs/      仕様書・補助資料
-```
+| パス                 | 内容                                     |
+| -------------------- | ---------------------------------------- |
+| `backend/`           | API サーバ、ユースケース、リポジトリ、DB |
+| `frontend/`          | SPA フロントエンド                       |
+| `docs/`              | 仕様書・補助資料                         |
+| `docker-compose.yml` | 開発用コンテナ定義                       |
+| `.env`               | Docker / backend 用の環境変数            |
+| `frontend/.env`      | frontend ローカル起動用の環境変数        |
+
+---
+
+## 環境変数
+
+### 1. ルートの `.env`
+
+これは **Docker Composeとbackend 用** です。
+
+| 変数名                | 例                      | 用途                     |
+| --------------------- | ----------------------- | ------------------------ |
+| `PORT`                | `8080`                  | API待受ポート            |
+| `POSTGRES_USER`       | `myuser`                | DBユーザー               |
+| `POSTGRES_PASSWORD`   | `mypassword`            | DBパスワード             |
+| `POSTGRES_DB`         | `mydb`                  | DB名                     |
+| `POSTGRES_PORT`       | `5433`                  | ホスト側DBポート         |
+| `POSTGRES_HOST`       | `localhost`             | ローカル実行時のDB接続先 |
+| `JWT_SECRET`          | `***`                   | JWT署名鍵                |
+| `GO_ENV`              | `dev`                   | 実行環境                 |
+| `API_DOMAIN`          | `localhost`             | Cookie / ドメイン設定用  |
+| `FE_URL`              | `http://localhost:3000` | フロントURL              |
+| `SEED_ADMIN_EMAIL`    | `admin@test.com`        | seed用管理者メール       |
+| `SEED_ADMIN_PASSWORD` | `AdminPass123!`         | seed用管理者パスワード   |
+
+### 2. `frontend/.env`
+
+これは **frontendをローカルで `npm run dev` するとき専用** です。
+
+| 変数名              | 例                      | 用途         |
+| ------------------- | ----------------------- | ------------ |
+| `VITE_API_BASE_URL` | `http://localhost:8080` | API の接続先 |
+
+---
+
+## `.env` が2つある理由
+
+| ファイル        | 役割                        | 読み手                    |
+| --------------- | --------------------------- | ------------------------- |
+| `.env`          | backend / Docker Compose 用 | Go アプリ、docker compose |
+| `frontend/.env` | Vite 用                     | React アプリ              |
 
 ---
 
 ## 起動方法
 
-### Docker 起動
+### Docker でまとめて起動
 
 ```bash
 docker compose up --build
+```
+
+起動後のURL:
+
+| サービス    | URL                     |
+| ----------- | ----------------------- |
+| Frontend    | `http://localhost:3000` |
+| Backend API | `http://localhost:8080` |
+| PostgreSQL  | `localhost:5433`        |
+| Redis       | `localhost:6379`        |
+
+---
+
+## ローカル実行
+
+### frontend
+
+```bash
+cd frontend
+npm install
+npm run dev
+```
+
+### backend
+
+```bash
+cd backend
+go run main.go
 ```
 
 ---
 
 ## 動作確認コマンド
 
-### Frontend 品質確認
+### Frontend確認
+
+| コマンド        | 内容           |
+| --------------- | -------------- |
+| `npx tsc -b`    | 型チェック     |
+| `npm run lint`  | ESLint         |
+| `npm run build` | 本番ビルド確認 |
 
 ```bash
 cd frontend
@@ -69,6 +168,10 @@ npm run build
 
 ### Backend テスト
 
+| コマンド        | 内容                     |
+| --------------- | ------------------------ |
+| `go test ./...` | 単体テスト含む全体テスト |
+
 ```bash
 cd backend
 go test ./...
@@ -76,7 +179,11 @@ go test ./...
 
 ### Backend E2E テスト
 
-E2E実行前にPostgreSQL / Redis / APIが起動している必要があります。
+E2E 実行前にPostgreSQL / Redis / APIが起動している必要があります。
+
+| コマンド                                                         | 内容      |
+| ---------------------------------------------------------------- | --------- |
+| `BASE_URL=http://127.0.0.1:8080 go test ./tests/e2e -v -count=1` | E2Eテスト |
 
 ```bash
 cd backend
@@ -87,11 +194,11 @@ BASE_URL=http://127.0.0.1:8080 go test ./tests/e2e -v -count=1
 
 ## 確認済みステータス
 
-現時点で以下を通過済みです。
-
-- Frontend: `npx tsc -b && npm run lint && npm run build`
-- Backend: `go test ./...`
-- Backend E2E: `BASE_URL=http://127.0.0.1:8080 go test ./tests/e2e -v -count=1`
+| 区分        | 確認内容                                                         |
+| ----------- | ---------------------------------------------------------------- |
+| Frontend    | `npx tsc -b && npm run lint && npm run build`                    |
+| Backend     | `go test ./...`                                                  |
+| Backend E2E | `BASE_URL=http://127.0.0.1:8080 go test ./tests/e2e -v -count=1` |
 
 ---
 
@@ -99,18 +206,37 @@ BASE_URL=http://127.0.0.1:8080 go test ./tests/e2e -v -count=1
 
 ### 記事表示
 
-- トップページはカテゴリ切り替え型
-- 記事クリックでモーダル表示
-- 「もっと見る」で詳細ページへ遷移
-- 詳細ページでは本文を全文表示
+| 項目         | 内容                             |
+| ------------ | -------------------------------- |
+| トップページ | カテゴリ切り替え型で表示         |
+| 一覧UI       | カード形式で表示                 |
+| プレビュー   | 記事クリックでモーダル表示       |
+| 詳細導線     | 「もっと見る」で詳細ページへ遷移 |
+| 詳細ページ   | 本文を全文表示                   |
 
 ### 管理画面
 
-- Admin ログイン時のみ Item / Source を作成可能
-- Access Token 切れに対しては refresh を挟んで再試行する構成
+| 項目     | 内容                                        |
+| -------- | ------------------------------------------- |
+| 権限制御 | Admin ログイン時のみItem / Sourceを作成可能 |
+| 認証維持 | Access Token切れ時はrefreshを挟んで再試行   |
 
 ### データ
 
-- seed で記事データを投入
+| 項目       | 内容                             |
+| ---------- | -------------------------------- |
+| 初期データ | seed 記事データを投入            |
+| 管理者     | `GO_ENV=dev`時にseed管理者を作成 |
+
+---
+
+## 開発用の初期アカウント
+
+`.env`の値を使ってseedされます。
+
+| 項目     | 値                    |
+| -------- | --------------------- |
+| Email    | `SEED_ADMIN_EMAIL`    |
+| Password | `SEED_ADMIN_PASSWORD` |
 
 ---
